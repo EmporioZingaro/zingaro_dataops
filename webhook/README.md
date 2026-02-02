@@ -118,7 +118,7 @@ understanding the data shape.
 
 ### Unit tests
 
-Unit tests live in `tests/test_main.py` and exercise `webhook/main.py`. The
+Unit tests live in `tests/test_main.py` and exercise `webhook/handler.py`. The
 test suite:
 
 - Stubs Flask helpers (`jsonify`, `abort`, `make_response`).
@@ -149,21 +149,11 @@ pytest
 ## Google Cloud Functions deployment notes
 
 When deploying to Google Cloud Functions, set the entry point to the handler
-function defined in `webhook/main.py`:
+function defined in `webhook/handler.py`:
 
 ```
-webhook.main.erp_webhook_handler
+webhook.handler.erp_webhook_handler
 ```
 
-Buildpacks default to `main.py` at the repository root. This repository includes
-a thin `main.py` wrapper that re-exports `erp_webhook_handler` so the default
-buildpack behavior works without additional flags.
-
-If you instead deploy only the `webhook/` folder, set `GOOGLE_FUNCTION_SOURCE`
-to `webhook/main.py` and keep `webhook/requirements.txt` alongside the
-handler.
-
-Place `requirements.txt` in the deployment directory so Cloud Functions can
-install dependencies during build. When deploying the repository root, use the
-root `requirements.txt`. When deploying only `webhook/`, use
-`webhook/requirements.txt`.
+Place `requirements.txt` at the repository root so Cloud Functions can install
+dependencies during build.

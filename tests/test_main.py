@@ -88,12 +88,12 @@ def load_main_with_env(monkeypatch, env):
     repo_root = os.path.dirname(os.path.dirname(__file__))
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
-    module_name = "webhook.main"
+    module_name = "webhook.handler"
     if module_name in importlib.sys.modules:
         del importlib.sys.modules[module_name]
-    import webhook.main
+    import webhook.handler
 
-    return importlib.reload(webhook.main)
+    return importlib.reload(webhook.handler)
 
 
 class FakeBlob:
