@@ -145,3 +145,15 @@ pytest
 - Consider restricting log level to INFO in production to avoid logging full
   payload data.
 - Keep `ALLOWED_SITUATIONS` narrow to reduce noise in the pipeline entry point.
+
+## Google Cloud Functions deployment notes
+
+When deploying to Google Cloud Functions, set the entry point to the handler
+function defined in `webhook/handler.py`:
+
+```
+webhook.handler.erp_webhook_handler
+```
+
+Place `requirements.txt` at the repository root so Cloud Functions can install
+dependencies during build.
