@@ -118,7 +118,7 @@ understanding the data shape.
 
 ### Unit tests
 
-Unit tests live in `tests/test_main.py` and exercise `webhook/main.py`. The
+Unit tests live in `tests/test_main.py` and exercise `webhook/handler.py`. The
 test suite:
 
 - Stubs Flask helpers (`jsonify`, `abort`, `make_response`).
@@ -149,22 +149,11 @@ pytest
 ## Google Cloud Functions deployment notes
 
 When deploying to Google Cloud Functions, set the entry point to the handler
-function defined in `webhook/main.py`:
+function defined in `webhook/handler.py`:
 
 ```
-webhook.main.erp_webhook_handler
+webhook.handler.erp_webhook_handler
 ```
 
-Deploy the `webhook/` folder and set `GOOGLE_FUNCTION_SOURCE` to
-`webhook/main.py`. Keep `webhook/requirements.txt` alongside the handler so
-Cloud Functions can install dependencies during build.
-
-### Runtime version (important)
-
-The error `ModuleNotFoundError: No module named 'cgi'` indicates the deployment
-is using Python 3.13, where the `cgi` module was removed. Current
-`google-cloud-storage` versions still import `cgi`, so the function must run on
-Python 3.12 (or earlier) until upstream dependencies drop the `cgi` import.
-
-**Fix:** explicitly select the Python 3.12 runtime in Cloud Functions (or any
-runtime <= 3.12). This is a deployment configuration change, not a code change.
+Place `requirements.txt` at the repository root so Cloud Functions can install
+dependencies during build.
