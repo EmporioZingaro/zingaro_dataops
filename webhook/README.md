@@ -155,6 +155,5 @@ function defined in `webhook/handler.py`:
 webhook.handler.erp_webhook_handler
 ```
 
-Place `requirements.txt` in the deployment directory so Cloud Functions can
-install dependencies during build. If you deploy only the `webhook/` folder,
-keep `webhook/requirements.txt` alongside the handler.
+Place `requirements.txt` at the repository root so Cloud Functions can install
+dependencies during build.
