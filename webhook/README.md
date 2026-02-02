@@ -118,7 +118,8 @@ understanding the data shape.
 
 ### Unit tests
 
-Unit tests live in `tests/test_main.py`. The test suite:
+Unit tests live in `tests/test_main.py` and exercise `webhook/handler.py`. The
+test suite:
 
 - Stubs Flask helpers (`jsonify`, `abort`, `make_response`).
 - Stubs the GCS client so uploads do not hit the network.
