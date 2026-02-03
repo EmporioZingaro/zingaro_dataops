@@ -32,5 +32,5 @@ Messages must include:
 
 For a `store_prefix` of `z316`, the function writes to:
 
-- Dataset: `z316_<DATASET_ID>`
+- Dataset: `<DATASET_ID>_z316`
 - Tables: `z316__pdv`, `z316__pesquisa`, `z316__produto`
