@@ -38,25 +38,33 @@ fields below.
 Single Pub/Sub topic path (e.g. `projects/<project>/topics/tiny-pipeline-events`) used for all
 stores. Messages include a `store_prefix` field so downstream consumers can route data as needed.
 
-## Configuration model
+Example:
 
-This function relies on a per-store configuration map (`STORE_CONFIGS`). Each store entry declares:
+```json
+{
+  "store-a": {
+    "base_url": "https://api.tiny.com.br/api2/",
+    "secret_path": "projects/my-project/secrets/tiny-store-a/versions/latest",
+    "target_bucket_name": "store-a-tiny-data",
+    "folder_name": "vendas/{timestamp}/{dados_id}/{uuid_str}",
+    "file_prefix": "store-a-",
+    "pdv_filename": "pdv-pedido-{dados_id}-{timestamp}-{uuid_str}",
+    "pesquisa_filename": "pedidos-pesquisa-{dados_id}-{timestamp}-{uuid_str}",
+    "produto_filename": "produto-{dados_id}-{produto_id}-{timestamp}-{uuid_str}",
+    "nfce_filename": "nfce-link-{dados_id}-{timestamp}-{uuid_str}",
+    "project_id": "my-project",
+    "source_identifier": "tiny",
+    "version_control": "v1"
+  }
+}
+```
 
-- Tiny API access (`base_url`, `secret_path`)
-- Output storage settings (`target_bucket_name`, `folder_name`, `file_prefix`, and filename templates)
-- Metadata fields (`project_id`, `source_identifier`, `version_control`)
+Example environment variable setup:
 
-The function resolves the store prefix from the triggering bucket or filename, selects the
-corresponding store entry, fetches the Tiny API token from Secret Manager, and stores the resulting
-payloads in the configured target bucket for that store.
-
-## Data flow
-
-1. A Tiny webhook payload is written to a per-store webhook bucket.
-2. This function reads the webhook payload to extract `dados.id`.
-3. Tiny API endpoints are called to fetch order, product, and NFC-e data.
-4. Enriched JSON payloads are stored in the store-specific target bucket.
-5. A Pub/Sub message is published to the shared topic with `store_prefix` included.
+```bash
+export STORE_CONFIGS='{"store-a":{"base_url":"https://api.tiny.com.br/api2/","secret_path":"projects/my-project/secrets/tiny-store-a/versions/latest","target_bucket_name":"store-a-tiny-data","folder_name":"vendas/{timestamp}/{dados_id}/{uuid_str}","file_prefix":"store-a-","pdv_filename":"pdv-pedido-{dados_id}-{timestamp}-{uuid_str}","pesquisa_filename":"pedidos-pesquisa-{dados_id}-{timestamp}-{uuid_str}","produto_filename":"produto-{dados_id}-{produto_id}-{timestamp}-{uuid_str}","nfce_filename":"nfce-link-{dados_id}-{timestamp}-{uuid_str}","project_id":"my-project","source_identifier":"tiny","version_control":"v1"}}'
+export PUBSUB_TOPIC='projects/my-project/topics/tiny-pipeline-events'
+```
 
 ## Notes
 - The store prefix is resolved from the triggering bucket name (e.g. `store-a-tiny-webhook`) or
