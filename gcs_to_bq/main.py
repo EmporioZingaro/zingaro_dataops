@@ -271,7 +271,7 @@ def resolve_dataset_id(store_prefix: str) -> str:
     normalized_prefix = normalize_store_prefix(store_prefix)
     if not normalized_prefix:
         raise MissingConfigError("store_prefix is empty after normalization")
-    return f"{normalized_prefix}_{DATASET_ID}"
+    return f"{DATASET_ID}_{normalized_prefix}"
 
 
 def resolve_table_id(store_prefix: str, table_base: str) -> str:
