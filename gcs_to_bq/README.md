@@ -6,7 +6,7 @@ for each API payload type (PDV, pesquisa, produto).
 
 ## Entry point
 
-Set the function entry point to `cloud_function_entry_point` (CloudEvent handler for Pub/Sub).
+Set the function entry point to `cloud_function_entry_point`.
 
 ## Expected Pub/Sub payload
 
@@ -18,9 +18,6 @@ Messages must include:
 - `pdv_pedido_data` (optional)
 - `produto_data` (optional)
 - `pedidos_pesquisa_data` (optional)
-
-The loader stores the original payload in a `raw_payload` JSON column and ignores unknown
-fields during streaming inserts to prevent schema mismatches from breaking the pipeline.
 
 ## Required environment variables
 
@@ -35,5 +32,5 @@ fields during streaming inserts to prevent schema mismatches from breaking the p
 
 For a `store_prefix` of `z316`, the function writes to:
 
-- Dataset: `z316_<DATASET_ID>`
+- Dataset: `<DATASET_ID>_z316`
 - Tables: `z316__pdv`, `z316__pesquisa`, `z316__produto`
