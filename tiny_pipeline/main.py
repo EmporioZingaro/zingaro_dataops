@@ -97,7 +97,6 @@ def load_store_configs() -> Dict[str, StoreConfig]:
     if not configs:
         raise ValueError(f"{STORE_CONFIGS_ENV} must include at least one store config")
 
-    logger.info("Loaded store configurations for %d store(s)", len(configs))
     return configs
 
 
@@ -112,20 +111,12 @@ def resolve_store_prefix(event: dict) -> str:
     if bucket_name and bucket_name.endswith(WEBHOOK_BUCKET_SUFFIX):
         prefix = bucket_name[: -len(WEBHOOK_BUCKET_SUFFIX)]
         if prefix:
-            logger.debug(
-                "Resolved store prefix '%s' from bucket name '%s'", prefix, bucket_name
-            )
             return prefix
 
     filename = event.get("name")
     if filename:
         match = WEBHOOK_FILENAME_PATTERN.search(filename)
         if match:
-            logger.debug(
-                "Resolved store prefix '%s' from object name '%s'",
-                match.group("prefix"),
-                filename,
-            )
             return match.group("prefix")
 
     raise ValueError("Unable to resolve store prefix from GCS event")
@@ -140,7 +131,6 @@ def get_store_config(prefix: str) -> StoreConfig:
 
 def get_api_token(prefix: str, secret_path: str) -> str:
     if prefix in token_cache:
-        logger.debug("Using cached API token for prefix '%s'", prefix)
         return token_cache[prefix]
 
     logger.debug("Accessing API token from Secret Manager for prefix '%s'", prefix)
@@ -200,21 +190,10 @@ def extract_payload_details(event: dict) -> Optional[Tuple[str, str, str]]:
     dados_id = webhook_payload.get("dados", {}).get("id")
 
     if not dados_id:
-        logger.warning(
-            "dados.id not found in webhook payload for bucket '%s', object '%s'",
-            event.get("bucket"),
-            file_name,
-        )
+        logger.warning("dados.id not found in webhook payload")
         return None
 
     timestamp, uuid_str = parse_filename_suffix(file_name)
-    logger.debug(
-        "Extracted payload details dados_id='%s', timestamp='%s', uuid='%s' from '%s'",
-        dados_id,
-        timestamp,
-        uuid_str,
-        file_name,
-    )
     return dados_id, timestamp, uuid_str
 
 
@@ -226,12 +205,6 @@ def parse_filename_suffix(file_name: str) -> Tuple[str, str]:
     logger.warning("Unable to parse timestamp/uuid from filename: %s", file_name)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     uuid_str = str(uuid4_hex())
-    logger.debug(
-        "Generated fallback timestamp '%s' and uuid '%s' for filename '%s'",
-        timestamp,
-        uuid_str,
-        file_name,
-    )
     return timestamp, uuid_str
 
 
@@ -239,65 +212,16 @@ def uuid4_hex() -> str:
     return str(uuid.uuid4())
 
 
-def process_webhook_payload(*args: Any, **kwargs: Any) -> Any:
-    event = args[0] if args else None
-    context = args[1] if len(args) > 1 else kwargs.get("context")
-
-    if context is None and hasattr(event, "get_json"):
-        request = event
-        payload = request.get_json(silent=True) or {}
-        event_id = request.headers.get("ce-id", "unknown")
-        logger.info("Function execution started (HTTP) - event_id=%s", event_id)
-        logger.debug("Received HTTP event payload: %s", payload)
-        handle_event(payload, event_id)
-        logger.info("Function execution completed (HTTP) - event_id=%s", event_id)
-        return ("", 204)
-    if context is None and hasattr(event, "data"):
-        payload = event.data
-        event_id = getattr(event, "id", "unknown")
-        logger.info("Function execution started (CloudEvent) - event_id=%s", event_id)
-        logger.debug("Received CloudEvent payload: %s", payload)
-        handle_event(payload, event_id)
-        logger.info(
-            "Function execution completed (CloudEvent) - event_id=%s", event_id
-        )
-        return ("", 204)
-
-    if event is None:
-        raise ValueError("No event payload provided to function entrypoint")
-
-    event_id = getattr(context, "event_id", "unknown")
-    logger.info("Function execution started - event_id=%s", event_id)
-    logger.debug("Received event payload: %s", event)
-    handle_event(event, event_id)
-    logger.info("Function execution completed - event_id=%s", event_id)
-
-
-def handle_event(event: dict, event_id: str) -> None:
-    prefix: Optional[str] = None
+def process_webhook_payload(event: dict, context: Any) -> None:
+    logger.info("Function execution started - Context: %s", context.event_id)
     try:
-        if not isinstance(event, dict) or not event:
-            raise ValueError("Event payload is empty or not a JSON object")
-
         prefix = resolve_store_prefix(event)
         store_config = get_store_config(prefix)
-        logger.info("Resolved store prefix '%s' for event_id=%s", prefix, event_id)
         payload_details = extract_payload_details(event)
         if not payload_details:
-            logger.info(
-                "Skipping processing due to missing dados.id - event_id=%s, prefix=%s",
-                event_id,
-                prefix,
-            )
             return
 
         dados_id, timestamp, uuid_str = payload_details
-        logger.info(
-            "Processing dados_id='%s' for prefix='%s' event_id=%s",
-            dados_id,
-            prefix,
-            event_id,
-        )
         token = get_api_token(prefix, store_config.secret_path)
 
         pdv_pedido_data, pedido_numero, produto_data = process_pdv_pedido_data(
@@ -321,10 +245,7 @@ def handle_event(event: dict, event_id: str) -> None:
             )
         except Exception as exc:
             logger.exception(
-                "NFC-e generation/link fetch failed for prefix='%s', dados_id='%s': %s",
-                prefix,
-                dados_id,
-                exc,
+                "An error occurred during NFC-e generation or link fetching: %s", exc
             )
 
         publish_notification(
@@ -339,19 +260,13 @@ def handle_event(event: dict, event_id: str) -> None:
         )
 
     except InvalidTokenError as exc:
-        logger.exception(
-            "Invalid token for prefix '%s' event_id=%s: %s",
-            prefix,
-            event_id,
-            exc,
-        )
+        logger.exception("Invalid token for prefix '%s': %s", prefix, exc)
     except Exception as exc:
         logger.exception(
-            "Function failed for event_id=%s prefix=%s: %s",
-            event_id,
-            prefix,
-            exc,
+            "Function failed: %s - Context: %s", exc, context.event_id
         )
+
+    logger.info("Function execution completed - Context: %s", context.event_id)
 
 
 def process_pdv_pedido_data(
@@ -362,7 +277,7 @@ def process_pdv_pedido_data(
     token: str,
 ) -> Tuple[dict, str, List[dict]]:
     logger.debug(
-        "Processing PDV pedido data for dados_id='%s' timestamp='%s' uuid='%s'",
+        "Processing PDV pedido data - dados_id: %s, timestamp: %s, uuid_str: %s",
         dados_id,
         timestamp,
         uuid_str,
@@ -370,15 +285,9 @@ def process_pdv_pedido_data(
     folder_path = store_config.folder_name.format(
         timestamp=timestamp, dados_id=dados_id, uuid_str=uuid_str
     )
-    logger.debug("Resolved folder path for PDV pedido data: %s", folder_path)
     pdv_pedido_data = fetch_pdv_pedido_data(store_config.base_url, dados_id, token)
     pedido_numero = (
         pdv_pedido_data.get("retorno", {}).get("pedido", {}).get("numero")
-    )
-    logger.info(
-        "Fetched PDV pedido data for dados_id='%s' pedido_numero='%s'",
-        dados_id,
-        pedido_numero,
     )
     store_payload(
         store_config,
@@ -398,7 +307,6 @@ def process_pdv_pedido_data(
     item_ids = collect_unique_product_ids(
         pdv_pedido_data.get("retorno", {}).get("pedido", {}).get("itens", [])
     )
-    logger.debug("Unique product IDs to fetch: %s", item_ids)
     for item_id in item_ids:
         produto_payload = fetch_produto_data(store_config.base_url, item_id, token)
         produto_payloads.append(produto_payload)
@@ -429,8 +337,6 @@ def collect_unique_product_ids(items: Iterable[dict]) -> List[str]:
         item_id = item.get("idProduto")
         if item_id:
             item_ids.add(str(item_id))
-        else:
-            logger.debug("Encountered item without idProduto: %s", item)
     return list(item_ids)
 
 
@@ -443,19 +349,18 @@ def process_pedidos_pesquisa_data(
     pedido_numero: str,
 ) -> dict:
     logger.debug(
-        "Processing pedidos pesquisa data for dados_id='%s' pedido_numero='%s'",
+        "Processing pedidos pesquisa data - dados_id: %s, timestamp: %s, uuid_str: %s, "
+        "pedido_numero: %s",
         dados_id,
+        timestamp,
+        uuid_str,
         pedido_numero,
     )
     folder_path = store_config.folder_name.format(
         timestamp=timestamp, dados_id=dados_id, uuid_str=uuid_str
     )
-    logger.debug("Resolved folder path for pedidos pesquisa data: %s", folder_path)
     pedidos_data = fetch_pedidos_pesquisa_data(
         store_config.base_url, pedido_numero, token
-    )
-    logger.info(
-        "Fetched pedidos pesquisa data for pedido_numero='%s'", pedido_numero
     )
     store_payload(
         store_config,
@@ -476,7 +381,6 @@ def process_pedidos_pesquisa_data(
 def process_nfce_generation(
     store_config: StoreConfig, dados_id: str, token: str
 ) -> str:
-    logger.debug("Requesting NFC-e generation for dados_id='%s'", dados_id)
     response = fetch_nfce_id(store_config.base_url, dados_id, token)
     registro = (
         response.get("retorno", {})
@@ -499,9 +403,6 @@ def process_nota_fiscal_link_retrieval(
     uuid_str: str,
     pedido_numero: str,
 ) -> dict:
-    logger.debug(
-        "Requesting Nota Fiscal link for idNotafiscal='%s'", id_notafiscal
-    )
     response = fetch_nota_fiscal_link(store_config.base_url, id_notafiscal, token)
     logger.info(
         "Successfully fetched Nota Fiscal link payload for idNotafiscal: %s",
@@ -601,11 +502,7 @@ def store_payload(
     store_config: StoreConfig, data: dict, filename_template: str, folder_path: str, metadata: dict
 ) -> None:
     file_path = f"{folder_path}/{store_config.file_prefix}{filename_template}.json"
-    logger.debug(
-        "Storing payload in GCS bucket '%s' at '%s'",
-        store_config.target_bucket_name,
-        file_path,
-    )
+    logger.debug("Storing payload in GCS at: %s", file_path)
 
     checksum = generate_checksum(data)
     processing_timestamp = datetime.utcnow().isoformat() + "Z"
@@ -615,11 +512,6 @@ def store_payload(
     blob = bucket.blob(file_path)
     blob.metadata = full_metadata
     blob.upload_from_string(json.dumps(data), content_type="application/json")
-    logger.info(
-        "Stored payload in GCS bucket '%s' object '%s'",
-        store_config.target_bucket_name,
-        file_path,
-    )
     logger.debug("Payload stored with metadata: %s", full_metadata)
 
 
@@ -644,11 +536,6 @@ def publish_notification(
     }
     serialized_message = json.dumps(message, ensure_ascii=False)
     payload = serialized_message.encode("utf-8")
-    logger.debug("Publishing notification payload for prefix='%s'", prefix)
+    logger.info("Notification published to %s", PUBSUB_TOPIC)
     future = publisher.publish(PUBSUB_TOPIC, data=payload)
     future.result()
-    logger.info(
-        "Published notification to %s for prefix='%s'",
-        PUBSUB_TOPIC,
-        prefix,
-    )
