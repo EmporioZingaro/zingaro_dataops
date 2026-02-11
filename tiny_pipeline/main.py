@@ -562,7 +562,21 @@ def process_nota_fiscal_link_retrieval(
     uuid_str: str,
     pedido_numero: str,
 ) -> dict:
-    response = fetch_nota_fiscal_link(store_config.base_url, id_notafiscal, token)
+    try:
+        response = fetch_nota_fiscal_link(store_config.base_url, id_notafiscal, token)
+    except ValidationError as exc:
+        logger.warning(
+            "nota.fiscal.obter.link failed for idNotafiscal %s: %s. Falling back to nota.fiscal.obter.",
+            id_notafiscal,
+            exc,
+        )
+        nota_fiscal_data = fetch_nota_fiscal_data(
+            store_config.base_url,
+            id_notafiscal,
+            token,
+        )
+        response = extract_link_payload_from_nota_fiscal_data(nota_fiscal_data)
+
     logger.info(
         "Successfully fetched Nota Fiscal link payload for idNotafiscal: %s",
         id_notafiscal,
@@ -636,6 +650,40 @@ def fetch_nota_fiscal_link(base_url: str, id_notafiscal: str, token: str) -> dic
         f"{base_url}nota.fiscal.obter.link.php?token={token}&formato=JSON&id={id_notafiscal}"
     )
     return make_api_call(url)
+
+
+def fetch_nota_fiscal_data(base_url: str, id_notafiscal: str, token: str) -> dict:
+    logger.debug("Fetching Nota Fiscal data for idNotafiscal: %s", id_notafiscal)
+    url = (
+        f"{base_url}nota.fiscal.obter.php?token={token}&formato=JSON&id={id_notafiscal}"
+    )
+    return make_api_call(url)
+
+
+def extract_link_payload_from_nota_fiscal_data(nota_fiscal_data: dict) -> dict:
+    retorno = nota_fiscal_data.get("retorno", {})
+    nota_fiscal = retorno.get("nota_fiscal", {})
+
+    candidate_link = (
+        retorno.get("link_nfe")
+        or nota_fiscal.get("link_nfe")
+        or nota_fiscal.get("link_nfce")
+        or nota_fiscal.get("link")
+    )
+
+    if not candidate_link:
+        raise ValidationError(
+            "Could not extract Nota Fiscal link from nota.fiscal.obter fallback response."
+        )
+
+    return {
+        "retorno": {
+            "status_processamento": "3",
+            "status": "OK",
+            "link_nfe": candidate_link,
+            "link_source": "nota.fiscal.obter",
+        }
+    }
 
 
 def generate_checksum(data: dict) -> str:
