@@ -234,15 +234,16 @@ def process_webhook_payload(event: dict, context: Any) -> None:
         nota_fiscal_link_data = None
         try:
             nfce_id = process_nfce_generation(store_config, dados_id, token)
-            nota_fiscal_link_data = process_nota_fiscal_link_retrieval(
-                store_config,
-                nfce_id,
-                token,
-                dados_id,
-                timestamp,
-                uuid_str,
-                pedido_numero,
-            )
+            if nfce_id:
+                nota_fiscal_link_data = process_nota_fiscal_link_retrieval(
+                    store_config,
+                    nfce_id,
+                    token,
+                    dados_id,
+                    timestamp,
+                    uuid_str,
+                    pedido_numero,
+                )
         except Exception as exc:
             logger.exception(
                 "An error occurred during NFC-e generation or link fetching: %s", exc
@@ -380,8 +381,17 @@ def process_pedidos_pesquisa_data(
 
 def process_nfce_generation(
     store_config: StoreConfig, dados_id: str, token: str
-) -> str:
-    response = fetch_nfce_id(store_config.base_url, dados_id, token)
+) -> Optional[str]:
+    try:
+        response = fetch_nfce_id(store_config.base_url, dados_id, token)
+    except ValidationError as exc:
+        logger.warning(
+            "Skipping NFC-e generation for dados_id %s: %s",
+            dados_id,
+            exc,
+        )
+        return None
+
     registro = (
         response.get("retorno", {})
         .get("registros", {})
@@ -391,7 +401,11 @@ def process_nfce_generation(
     if nfce_id:
         logger.info("NFC-e generated successfully with idNotaFiscal: %s", nfce_id)
         return nfce_id
-    raise ValidationError("NFCe generation response is missing expected fields.")
+    logger.warning(
+        "Skipping NFC-e link retrieval for dados_id %s: NFC-e generation response is missing expected fields.",
+        dados_id,
+    )
+    return None
 
 
 def process_nota_fiscal_link_retrieval(
