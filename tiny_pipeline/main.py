@@ -256,7 +256,7 @@ def process_webhook_payload(event: Any, context: Any = None) -> None:
         store_config = get_store_config(prefix)
         payload_details = extract_payload_details(event)
         if not payload_details:
-            return
+            return ("", 204) if is_http_invocation else None
 
         dados_id, timestamp, uuid_str = payload_details
         token = get_api_token(prefix, store_config.secret_path)
@@ -305,6 +305,7 @@ def process_webhook_payload(event: Any, context: Any = None) -> None:
         )
 
     logger.info("Function execution completed - Context: %s", context.event_id)
+    return ("", 204) if is_http_invocation else None
 
 
 def process_pdv_pedido_data(
