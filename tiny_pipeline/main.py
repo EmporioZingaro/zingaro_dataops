@@ -25,6 +25,8 @@ FILENAME_SUFFIX_PATTERN = re.compile(
     r"-(?P<timestamp>\d{8}T\d{6})-(?P<uuid>[0-9a-fA-F-]{36})\.json$"
 )
 REQUEST_TIMEOUT_SECONDS = 30
+ENABLE_NFCE_GENERATION_ENV = "ENABLE_NFCE_GENERATION"
+ENABLE_NFCE_ON_BACKFILL_ENV = "ENABLE_NFCE_ON_BACKFILL"
 
 storage_client = storage.Client()
 publisher = pubsub_v1.PublisherClient()
@@ -46,6 +48,22 @@ class InvalidTokenError(Exception):
 
 class RetryableError(Exception):
     pass
+
+
+def env_flag_enabled(var_name: str, default: bool = True) -> bool:
+    raw = os.getenv(var_name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+
+
+@dataclass(frozen=True)
+class NFCeProcessingResult:
+    status: str
+    nfce_id: Optional[str] = None
+    nota_fiscal_link_data: Optional[dict] = None
+    source: Optional[str] = None
+    error_message: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -162,19 +180,25 @@ def make_api_call(url: str) -> dict:
 
 
 def validate_json_payload(json_data: dict) -> None:
-    status_processamento = json_data.get("retorno", {}).get("status_processamento")
+    retorno = json_data.get("retorno", {})
+    status_processamento = str(retorno.get("status_processamento", ""))
 
     if status_processamento == "3":
         return
+
     if status_processamento == "2":
         raise ValidationError("Invalid query parameter.")
+
     if status_processamento == "1":
-        codigo_erro = json_data.get("retorno", {}).get("codigo_erro")
-        erros = json_data.get("retorno", {}).get("erros", [])
+        codigo_erro = str(retorno.get("codigo_erro", ""))
+        erros = retorno.get("erros", [])
         erro_message = erros[0].get("erro") if erros else "Unknown error"
-        if codigo_erro == "1":
+        if codigo_erro in {"1", "2"}:
             raise InvalidTokenError(f"Token is not valid: {erro_message}")
         raise RetryableError(f"Error encountered, will attempt retry: {erro_message}")
+
+    if status_processamento == "4":
+        raise RetryableError("Request was partially processed by Tiny API.")
 
 
 def read_webhook_payload(bucket_name: str, file_name: str) -> dict:
@@ -241,22 +265,92 @@ def normalize_event_context(event: Any, context: Any) -> Tuple[dict, Any]:
         return event, context
 
     if isinstance(event, dict):
-        return event, SimpleNamespace(event_id="unknown")
+        return event, SimpleNamespace(event_id="unknown", is_http_invocation=False)
 
     parsed_event = parse_http_request_payload(event)
     event_id = event.headers.get("Ce-Id", "unknown")
-    return parsed_event, SimpleNamespace(event_id=event_id)
+    return parsed_event, SimpleNamespace(event_id=event_id, is_http_invocation=True)
 
 
-def process_webhook_payload(event: Any, context: Any = None) -> None:
+def is_backfill_event(event: dict) -> bool:
+    file_name = str(event.get("name", "")).lower()
+    return "backfill" in file_name
+
+
+
+def process_nfce_flow(
+    store_config: StoreConfig,
+    dados_id: str,
+    token: str,
+    timestamp: str,
+    uuid_str: str,
+    pedido_numero: str,
+    should_generate: bool,
+) -> NFCeProcessingResult:
+    existing_nfce_id = fetch_existing_nfce_id(store_config.base_url, dados_id, token)
+    if existing_nfce_id:
+        logger.info(
+            "Existing NFC-e found for dados_id %s with idNotaFiscal: %s",
+            dados_id,
+            existing_nfce_id,
+        )
+        link_data = process_nota_fiscal_link_retrieval(
+            store_config,
+            existing_nfce_id,
+            token,
+            dados_id,
+            timestamp,
+            uuid_str,
+            pedido_numero,
+        )
+        return NFCeProcessingResult(
+            status="already_exists",
+            nfce_id=existing_nfce_id,
+            nota_fiscal_link_data=link_data,
+            source="pedido.obter",
+        )
+
+    if not should_generate:
+        logger.info(
+            "Skipping NFC-e generation because it is disabled for dados_id %s",
+            dados_id,
+        )
+        return NFCeProcessingResult(status="generation_disabled")
+
+    generated_nfce_id = process_nfce_generation(store_config, dados_id, token)
+    if not generated_nfce_id:
+        return NFCeProcessingResult(status="generation_skipped")
+
+    link_data = process_nota_fiscal_link_retrieval(
+        store_config,
+        generated_nfce_id,
+        token,
+        dados_id,
+        timestamp,
+        uuid_str,
+        pedido_numero,
+    )
+    return NFCeProcessingResult(
+        status="generated",
+        nfce_id=generated_nfce_id,
+        nota_fiscal_link_data=link_data,
+        source="gerar.nota.fiscal.pedido",
+    )
+
+
+def process_webhook_payload(event: Any, context: Any = None) -> Any:
     event, context = normalize_event_context(event, context)
+    is_http_invocation = bool(getattr(context, "is_http_invocation", False))
+    success_response = ("", 204) if is_http_invocation else None
+
     logger.info("Function execution started - Context: %s", context.event_id)
+    prefix = "unknown"
     try:
         prefix = resolve_store_prefix(event)
         store_config = get_store_config(prefix)
         payload_details = extract_payload_details(event)
         if not payload_details:
-            return ("", 204) if is_http_invocation else None
+            return success_response
 
         dados_id, timestamp, uuid_str = payload_details
         token = get_api_token(prefix, store_config.secret_path)
@@ -268,33 +362,46 @@ def process_webhook_payload(event: Any, context: Any = None) -> None:
             store_config, dados_id, timestamp, uuid_str, token, pedido_numero
         )
 
-        nota_fiscal_link_data = None
+        nfce_result = NFCeProcessingResult(status="not_attempted")
         try:
-            nfce_id = process_nfce_generation(store_config, dados_id, token)
-            if nfce_id:
-                nota_fiscal_link_data = process_nota_fiscal_link_retrieval(
-                    store_config,
-                    nfce_id,
-                    token,
-                    dados_id,
-                    timestamp,
-                    uuid_str,
-                    pedido_numero,
-                )
+            enable_nfce_generation = env_flag_enabled(ENABLE_NFCE_GENERATION_ENV, True)
+            if is_backfill_event(event):
+                enable_nfce_generation = env_flag_enabled(
+                    ENABLE_NFCE_ON_BACKFILL_ENV,
+                    False,
+                ) and enable_nfce_generation
+
+            nfce_result = process_nfce_flow(
+                store_config=store_config,
+                dados_id=dados_id,
+                token=token,
+                timestamp=timestamp,
+                uuid_str=uuid_str,
+                pedido_numero=pedido_numero,
+                should_generate=enable_nfce_generation,
+            )
         except Exception as exc:
             logger.exception(
                 "An error occurred during NFC-e generation or link fetching: %s", exc
             )
+            nfce_result = NFCeProcessingResult(
+                status="error",
+                error_message=str(exc),
+            )
 
         publish_notification(
-            prefix,
-            store_config,
-            pdv_pedido_data,
-            produto_data,
-            pedidos_pesquisa_data,
-            nota_fiscal_link_data,
-            timestamp,
-            uuid_str,
+            prefix=prefix,
+            store_config=store_config,
+            pdv_pedido_data=pdv_pedido_data,
+            produto_payloads=produto_data,
+            pedidos_pesquisa_data=pedidos_pesquisa_data,
+            nota_fiscal_link_data=nfce_result.nota_fiscal_link_data,
+            timestamp=timestamp,
+            uuid_str=uuid_str,
+            nfce_status=nfce_result.status,
+            nfce_id=nfce_result.nfce_id,
+            nfce_source=nfce_result.source,
+            nfce_error_message=nfce_result.error_message,
         )
 
     except InvalidTokenError as exc:
@@ -305,7 +412,7 @@ def process_webhook_payload(event: Any, context: Any = None) -> None:
         )
 
     logger.info("Function execution completed - Context: %s", context.event_id)
-    return ("", 204) if is_http_invocation else None
+    return success_response
 
 
 def process_pdv_pedido_data(
@@ -508,6 +615,21 @@ def fetch_nfce_id(base_url: str, dados_id: str, token: str) -> dict:
     return make_api_call(url)
 
 
+def fetch_existing_nfce_id(base_url: str, dados_id: str, token: str) -> Optional[str]:
+    logger.debug("Checking existing NFC-e for dados_id: %s", dados_id)
+    response = make_api_call(
+        f"{base_url}pedido.obter.php?token={token}&id={dados_id}&formato=JSON"
+    )
+    id_nota_fiscal = (
+        response.get("retorno", {}).get("pedido", {}).get("id_nota_fiscal")
+    )
+
+    if id_nota_fiscal in (None, "", "0", 0):
+        return None
+
+    return str(id_nota_fiscal)
+
+
 def fetch_nota_fiscal_link(base_url: str, id_notafiscal: str, token: str) -> dict:
     logger.debug("Fetching Nota Fiscal link for idNotafiscal: %s", id_notafiscal)
     url = (
@@ -576,6 +698,10 @@ def publish_notification(
     nota_fiscal_link_data: Optional[dict],
     timestamp: str,
     uuid_str: str,
+    nfce_status: str,
+    nfce_id: Optional[str],
+    nfce_source: Optional[str],
+    nfce_error_message: Optional[str],
 ) -> None:
     message = {
         "store_prefix": prefix,
@@ -585,6 +711,10 @@ def publish_notification(
         "nota_fiscal_link_data": nota_fiscal_link_data,
         "timestamp": timestamp,
         "uuid": uuid_str,
+        "nfce_status": nfce_status,
+        "nfce_id": nfce_id,
+        "nfce_source": nfce_source,
+        "nfce_error_message": nfce_error_message,
     }
     serialized_message = json.dumps(message, ensure_ascii=False)
     payload = serialized_message.encode("utf-8")
