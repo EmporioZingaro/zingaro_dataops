@@ -248,8 +248,7 @@ def normalize_event_context(event: Any, context: Any) -> Tuple[dict, Any]:
     return parsed_event, SimpleNamespace(event_id=event_id)
 
 
-def process_webhook_payload(event: Any, context: Any = None) -> Any:
-    is_http_invocation = context is None and not isinstance(event, dict)
+def process_webhook_payload(event: Any, context: Any = None) -> None:
     event, context = normalize_event_context(event, context)
     logger.info("Function execution started - Context: %s", context.event_id)
     try:
