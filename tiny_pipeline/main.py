@@ -241,33 +241,22 @@ def normalize_event_context(event: Any, context: Any) -> Tuple[dict, Any]:
         return event, context
 
     if isinstance(event, dict):
-        return event, SimpleNamespace(event_id="unknown", is_http_invocation=False)
+        return event, SimpleNamespace(event_id="unknown")
 
     parsed_event = parse_http_request_payload(event)
     event_id = event.headers.get("Ce-Id", "unknown")
-    return parsed_event, SimpleNamespace(event_id=event_id, is_http_invocation=True)
+    return parsed_event, SimpleNamespace(event_id=event_id)
 
 
-def should_return_http_response(context: Any) -> bool:
-    return bool(getattr(context, "is_http_invocation", False))
-
-
-def http_success_response(context: Any) -> Optional[Tuple[str, int]]:
-    if should_return_http_response(context):
-        return ("", 204)
-    return None
-
-
-def process_webhook_payload(event: Any, context: Any = None) -> Any:
+def process_webhook_payload(event: Any, context: Any = None) -> None:
     event, context = normalize_event_context(event, context)
-    success_response = http_success_response(context)
     logger.info("Function execution started - Context: %s", context.event_id)
     try:
         prefix = resolve_store_prefix(event)
         store_config = get_store_config(prefix)
         payload_details = extract_payload_details(event)
         if not payload_details:
-            return success_response
+            return ("", 204) if is_http_invocation else None
 
         dados_id, timestamp, uuid_str = payload_details
         token = get_api_token(prefix, store_config.secret_path)
@@ -316,7 +305,7 @@ def process_webhook_payload(event: Any, context: Any = None) -> Any:
         )
 
     logger.info("Function execution completed - Context: %s", context.event_id)
-    return success_response
+    return ("", 204) if is_http_invocation else None
 
 
 def process_pdv_pedido_data(
