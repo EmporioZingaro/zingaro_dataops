@@ -182,19 +182,17 @@ def make_api_call(url: str) -> dict:
 def validate_json_payload(json_data: dict) -> None:
     retorno = json_data.get("retorno", {})
     status_processamento = str(retorno.get("status_processamento", ""))
-    codigo_erro = str(retorno.get("codigo_erro", ""))
-    erros = retorno.get("erros", [])
-    erro_message = erros[0].get("erro") if erros else "Unknown error"
 
     if status_processamento == "3":
         return
 
     if status_processamento == "2":
-        raise ValidationError(
-            f"Validation error from Tiny API (codigo_erro={codigo_erro}): {erro_message}"
-        )
+        raise ValidationError("Invalid query parameter.")
 
     if status_processamento == "1":
+        codigo_erro = str(retorno.get("codigo_erro", ""))
+        erros = retorno.get("erros", [])
+        erro_message = erros[0].get("erro") if erros else "Unknown error"
         if codigo_erro in {"1", "2"}:
             raise InvalidTokenError(f"Token is not valid: {erro_message}")
         raise RetryableError(f"Error encountered, will attempt retry: {erro_message}")
