@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ VERSION = os.getenv("VERSION")
 PROJECT_ID = os.getenv("PROJECT_ID")
 TOPIC_ID = os.getenv("TOPIC_ID")
 NOTIFY = os.getenv("NOTIFY", "False").lower() == "true"
+ENABLE_DETERMINISTIC_ROW_IDS = os.getenv("ENABLE_DETERMINISTIC_ROW_IDS", "False").lower() == "true"
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -320,11 +322,14 @@ def publish_to_pubsub(uuid: str) -> None:
     stop=stop_after_attempt(3),
 )
 def insert_rows_with_retry(
-    client: bigquery.Client, table_ref: bigquery.TableReference, rows: List[Dict[str, Any]]
+    client: bigquery.Client,
+    table_ref: bigquery.TableReference,
+    rows: List[Dict[str, Any]],
+    row_ids: List[str] | None = None,
 ) -> None:
     logging.info("Inserting %s rows into %s", len(rows), table_ref.table_id)
     try:
-        errors = client.insert_rows_json(table_ref, rows)
+        errors = client.insert_rows_json(table_ref, rows, row_ids=row_ids)
         if errors:
             logging.error("Errors streaming data to BigQuery: %s", errors)
         else:
@@ -332,6 +337,13 @@ def insert_rows_with_retry(
     except exceptions.ServerError as exc:
         logging.error("Server error occurred while inserting rows to %s: %s", table_ref.table_id, exc)
         raise
+
+
+
+
+def _build_row_id(*parts: Any) -> str:
+    normalized = "|".join(str(part) for part in parts)
+    return hashlib.md5(normalized.encode("utf-8")).hexdigest()
 
 
 def transform_and_load_pdv_data(
@@ -363,7 +375,11 @@ def transform_and_load_pdv_data(
     log_bigquery_reference(client, dataset_id, table_id)
 
     table_ref = client.dataset(dataset_id).table(table_id)
-    insert_rows_with_retry(client, table_ref, [pedido_data])
+    pedido_id = str(pedido_data.get("id", ""))
+    row_ids = None
+    if ENABLE_DETERMINISTIC_ROW_IDS:
+        row_ids = [_build_row_id(uuid, pedido_id, "pdv")]
+    insert_rows_with_retry(client, table_ref, [pedido_data], row_ids)
 
     if NOTIFY:
         publish_to_pubsub(uuid)
@@ -407,7 +423,11 @@ def transform_and_load_pesquisa_data(
 
         table_ref = client.dataset(dataset_id).table(table_id)
 
-        insert_rows_with_retry(client, table_ref, [pedido_data])
+        pedido_id = str(pedido_data.get("id", ""))
+        row_ids = None
+        if ENABLE_DETERMINISTIC_ROW_IDS:
+            row_ids = [_build_row_id(uuid, pedido_id, "pesquisa")]
+        insert_rows_with_retry(client, table_ref, [pedido_data], row_ids)
 
         if NOTIFY:
             publish_to_pubsub(uuid)
@@ -444,7 +464,11 @@ def transform_and_load_produto_data(
 
     table_ref = client.dataset(dataset_id).table(table_id)
 
-    insert_rows_with_retry(client, table_ref, [produto_data])
+    produto_id = str(produto_data.get("id", ""))
+    row_ids = None
+    if ENABLE_DETERMINISTIC_ROW_IDS:
+        row_ids = [_build_row_id(uuid, produto_id, "produto")]
+    insert_rows_with_retry(client, table_ref, [produto_data], row_ids)
 
     if NOTIFY:
         publish_to_pubsub(uuid)

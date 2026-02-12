@@ -190,3 +190,87 @@ This repo does not expose one global `DRY_RUN=true` switch across all functions.
 - [`gcs_to_bq/README.md`](gcs_to_bq/README.md)
 - [`tiny-transformation-sales-to-bq/README.md`](tiny-transformation-sales-to-bq/README.md)
 - [`fidelidade_points_to_bq/README.md`](fidelidade_points_to_bq/README.md)
+
+
+## Validation workflow CLI (Chunk 7)
+
+A local CLI is available at `scripts/validation_cli.py` to run read-only validation, remediation planning, and dedupe planning workflows using JSON inputs.
+
+### Commands
+
+- `validate`: builds UUID propagation + pedido completeness reports.
+- `remediate`: runs bounded remediation loop (`--max-retries`) with optional action dispatch backend and writes attempt summary.
+- `dedupe-report`: generates duplicate winner/loser report for one stage.
+- `dedupe-apply`: generates delete-plan manifest for duplicate losers (safe planning mode).
+
+For `validate` and `remediate`, there are two source modes:
+- `--mode file` (default): consume `--expected-json` and `--stages-json`.
+- `--mode live`: pull expected/observed data directly from GCS + BigQuery.
+
+### Common flags
+
+- `--store-prefix`
+- `--start-date`
+- `--end-date`
+- `--output-dir`
+- `--verbose`
+- `--verbose-every`
+
+### Live mode flags (validate/remediate)
+
+- `--webhook-bucket`
+- `--webhook-prefix` (default `vendas/`)
+- `--tiny-api-bucket`
+- `--tiny-api-prefix`
+- `--stage-query stage_name::SELECT ...` (repeat per stage)
+- `--require-pedido-stage <stage_name>` (repeat as needed)
+- `--gcp-project` (optional)
+
+- `--retry-wait-seconds`
+- `--remediation-backend` (`noop` or `http_webhook`)
+- `--webhook-url` (required for `http_webhook`)
+- `--webhook-timeout-s`
+- `--remediate-stage` (repeatable allowlist for stage targets)
+- `--max-actions-per-attempt`
+- `--stage-webhook-url stage::url` (stage-specific webhook route override)
+
+### Example
+
+```bash
+python -m scripts.validation_cli validate   --expected-json ./tmp/expected.json   --stages-json ./tmp/stages.json   --store-prefix z316   --output-dir ./tmp/out
+```
+
+```bash
+python -m scripts.validation_cli validate \
+  --mode live \
+  --webhook-bucket z316-tiny-webhook \
+  --tiny-api-bucket z316-tiny-api \
+  --stage-query "raw_pdv::SELECT store_prefix, uuid, dados_id, pedido_id, timestamp FROM `project.dataset.table`" \
+  --stage-query "points_sales::SELECT store_prefix, uuid, dados_id, pedido_id, event_timestamp FROM `project.dataset.table`" \
+  --require-pedido-stage points_sales \
+  --store-prefix z316 \
+  --verbose --verbose-every 200 --output-dir ./tmp/out-live
+```
+
+
+```bash
+python -m scripts.validation_cli remediate \
+  --mode live \
+  --webhook-bucket z316-tiny-webhook \
+  --tiny-api-bucket z316-tiny-api \
+  --stage-query "raw_pdv::SELECT store_prefix, uuid, dados_id, pedido_id, timestamp FROM `project.dataset.table`" \
+  --remediation-backend http_webhook \
+  --webhook-url https://example.com/retrigger \
+  --max-retries 3 \
+  --retry-wait-seconds 30 \
+  --verbose --verbose-every 200 --output-dir ./tmp/remediate-out
+```
+
+
+### Remediation outputs
+
+`remediate` now writes:
+- `remediation_result.json`
+- `remediation_runtime_diagnostics.json`
+- `manual_intervention_queue.json` (unresolved targets + policy recommendations)
+- `remediation_run_verdict.json` (pass/fail closure verdict)
