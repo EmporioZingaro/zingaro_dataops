@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import logging
 import math
@@ -29,6 +30,7 @@ PUBSUB_TOPIC = os.environ.get("PUBSUB_TOPIC")
 SOURCE_IDENTIFIER = os.environ.get("SOURCE_IDENTIFIER")
 VERSION_CONTROL = os.environ.get("VERSION_CONTROL")
 FIDELIDADE_MULTIPLIER = float(os.environ.get("FIDELIDADE_MULTIPLIER", 0.0))
+ENABLE_DETERMINISTIC_ROW_IDS = os.environ.get("ENABLE_DETERMINISTIC_ROW_IDS", "false").lower() == "true"
 
 bigquery_client = bigquery.Client()
 publisher = pubsub_v1.PublisherClient()
@@ -417,6 +419,13 @@ def create_table_if_not_exists(
         logger.info("Created table '%s'.", table_id)
 
 
+
+
+def _build_row_id(*parts: Any) -> str:
+    normalized = "|".join(str(part) for part in parts)
+    return hashlib.md5(normalized.encode("utf-8")).hexdigest()
+
+
 def load_data_to_bigquery(
     sales_row: dict, sales_items_rows: List[dict], uuid: str
 ) -> None:
@@ -437,13 +446,40 @@ def load_data_to_bigquery(
             ["store_prefix", "cliente_cpf", "vendedor_id", "produto_idProduto"],
         )
         if sales_row and sales_items_rows:
-            errors = bigquery_client.insert_rows_json(sales_table_id, [sales_row])
+            sales_row_ids = None
+            if ENABLE_DETERMINISTIC_ROW_IDS:
+                sales_row_ids = [
+                    _build_row_id(
+                        sales_row.get("uuid", ""),
+                        sales_row.get("pedido_id", ""),
+                        "sales",
+                    )
+                ]
+            errors = bigquery_client.insert_rows_json(
+                sales_table_id,
+                [sales_row],
+                row_ids=sales_row_ids,
+            )
             if errors:
                 logger.error("Errors while inserting sales data: %s", errors)
             else:
                 logger.info("Sales data inserted successfully for UUID: %s", uuid)
+            sales_items_row_ids = None
+            if ENABLE_DETERMINISTIC_ROW_IDS:
+                sales_items_row_ids = [
+                    _build_row_id(
+                        row.get("uuid", ""),
+                        row.get("pedido_id", ""),
+                        row.get("produto_idProduto", ""),
+                        index,
+                        "sales_items",
+                    )
+                    for index, row in enumerate(sales_items_rows)
+                ]
             errors = bigquery_client.insert_rows_json(
-                sales_items_table_id, sales_items_rows
+                sales_items_table_id,
+                sales_items_rows,
+                row_ids=sales_items_row_ids,
             )
             if errors:
                 logger.error("Errors while inserting sales items data: %s", errors)
