@@ -183,6 +183,16 @@ This repo does not expose one global `DRY_RUN=true` switch across all functions.
 3. For webhook-only checks, send payloads with disallowed situations to confirm ignore path (`ALLOWED_SITUATIONS`) without downstream writes.
 4. For Pub/Sub consumers, publish a limited sample payload and verify row counts in sandbox tables.
 
+
+### Incident cleanup + targeted replay (generic outage pattern)
+
+For outage windows where business dates are missing/partial, use the dedicated runbook and SQL generator:
+
+- Runbook: [`scripts/outage_recovery_runbook.md`](scripts/outage_recovery_runbook.md)
+- SQL generator: [`scripts/generate_targeted_recovery_sql.py`](scripts/generate_targeted_recovery_sql.py)
+
+This workflow is review-first and keeps replay bounded to affected dates only.
+
 ## Detailed module READMEs
 
 - [`webhook/README.md`](webhook/README.md)
