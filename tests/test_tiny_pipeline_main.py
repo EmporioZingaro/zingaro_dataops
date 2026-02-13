@@ -70,32 +70,38 @@ def load_tiny_pipeline_main(monkeypatch):
     return importlib.reload(tiny_pipeline.main)
 
 
-def test_fetch_existing_nfce_id_uses_id_nota_fiscal_field(monkeypatch):
-    main = load_tiny_pipeline_main(monkeypatch)
-
-    def fake_make_api_call(url):
-        return {"retorno": {"pedido": {"id_nota_fiscal": "999"}}}
-
-    monkeypatch.setattr(main, "make_api_call", fake_make_api_call)
-
-    nfce_id = main.fetch_existing_nfce_id("https://base/", "123", "token")
-
-    assert nfce_id == "999"
-
-
-def test_fetch_nota_fiscal_link_uses_single_request_with_nfce_id(monkeypatch):
+def test_fetch_nota_fiscal_link_retries_with_id_notafiscal(monkeypatch):
     main = load_tiny_pipeline_main(monkeypatch)
     called_urls = []
 
     def fake_make_api_call(url):
         called_urls.append(url)
+        if "&id=" in url:
+            raise main.ValidationError("Invalid query parameter.")
         return {"retorno": {"status_processamento": "3", "link_nfe": "ok"}}
 
     monkeypatch.setattr(main, "make_api_call", fake_make_api_call)
 
-    response = main.fetch_nota_fiscal_link("https://base/", "884802540", "token")
+    response = main.fetch_nota_fiscal_link("https://base/", "123", "token")
 
     assert response["retorno"]["link_nfe"] == "ok"
-    assert called_urls == [
-        "https://base/nota.fiscal.obter.link.php?token=token&formato=JSON&id=884802540"
-    ]
+    assert len(called_urls) == 2
+    assert "&id=123" in called_urls[0]
+    assert "&idNotaFiscal=123" in called_urls[1]
+
+
+def test_fetch_nota_fiscal_data_raises_original_validation_error(monkeypatch):
+    main = load_tiny_pipeline_main(monkeypatch)
+
+    def fake_make_api_call(url):
+        if "&id=" in url:
+            raise main.ValidationError("Invalid query parameter.")
+        raise main.ValidationError("Different validation error")
+
+    monkeypatch.setattr(main, "make_api_call", fake_make_api_call)
+
+    try:
+        main.fetch_nota_fiscal_data("https://base/", "456", "token")
+        assert False, "Expected ValidationError"
+    except main.ValidationError as exc:
+        assert str(exc) == "Different validation error"
