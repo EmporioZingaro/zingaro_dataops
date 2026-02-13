@@ -647,18 +647,56 @@ def fetch_existing_nfce_id(base_url: str, dados_id: str, token: str) -> Optional
 
 def fetch_nota_fiscal_link(base_url: str, id_notafiscal: str, token: str) -> dict:
     logger.debug("Fetching Nota Fiscal link for idNotafiscal: %s", id_notafiscal)
-    url = (
-        f"{base_url}nota.fiscal.obter.link.php?token={token}&formato=JSON&id={id_notafiscal}"
+    return fetch_nota_fiscal_with_parameter_fallback(
+        base_url=base_url,
+        endpoint="nota.fiscal.obter.link.php",
+        id_notafiscal=id_notafiscal,
+        token=token,
     )
-    return make_api_call(url)
 
 
 def fetch_nota_fiscal_data(base_url: str, id_notafiscal: str, token: str) -> dict:
     logger.debug("Fetching Nota Fiscal data for idNotafiscal: %s", id_notafiscal)
-    url = (
-        f"{base_url}nota.fiscal.obter.php?token={token}&formato=JSON&id={id_notafiscal}"
+    return fetch_nota_fiscal_with_parameter_fallback(
+        base_url=base_url,
+        endpoint="nota.fiscal.obter.php",
+        id_notafiscal=id_notafiscal,
+        token=token,
     )
-    return make_api_call(url)
+
+
+def fetch_nota_fiscal_with_parameter_fallback(
+    base_url: str,
+    endpoint: str,
+    id_notafiscal: str,
+    token: str,
+) -> dict:
+    query_parameters = ("id", "idNotaFiscal")
+    last_validation_error: Optional[ValidationError] = None
+
+    for parameter_name in query_parameters:
+        url = (
+            f"{base_url}{endpoint}?token={token}&formato=JSON"
+            f"&{parameter_name}={id_notafiscal}"
+        )
+        try:
+            return make_api_call(url)
+        except ValidationError as exc:
+            last_validation_error = exc
+            if str(exc) != "Invalid query parameter.":
+                raise
+            logger.info(
+                "Tiny API rejected query parameter '%s' for endpoint %s. Retrying with an alternative parameter.",
+                parameter_name,
+                endpoint,
+            )
+
+    if last_validation_error is not None:
+        raise last_validation_error
+
+    raise ValidationError(
+        f"Failed to fetch Nota Fiscal data from endpoint {endpoint}: no parameter variants available."
+    )
 
 
 def extract_link_payload_from_nota_fiscal_data(nota_fiscal_data: dict) -> dict:
