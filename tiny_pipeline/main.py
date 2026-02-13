@@ -635,9 +635,8 @@ def fetch_existing_nfce_id(base_url: str, dados_id: str, token: str) -> Optional
     response = make_api_call(
         f"{base_url}pedido.obter.php?token={token}&id={dados_id}&formato=JSON"
     )
-    id_nota_fiscal = (
-        response.get("retorno", {}).get("pedido", {}).get("id_nota_fiscal")
-    )
+    pedido = response.get("retorno", {}).get("pedido", {})
+    id_nota_fiscal = pedido.get("id_nota_fiscal")
 
     if id_nota_fiscal in (None, "", "0", 0):
         return None
