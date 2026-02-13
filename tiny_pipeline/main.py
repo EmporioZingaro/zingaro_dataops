@@ -166,6 +166,7 @@ def get_api_token(prefix: str, secret_path: str) -> str:
     wait=wait_exponential(multiplier=2.5, min=30, max=187.5),
     stop=stop_after_attempt(4),
     retry=retry_if_exception_type((requests.exceptions.RequestException, RetryableError)),
+    reraise=True,
 )
 def make_api_call(url: str) -> dict:
     sanitized_url = url.split("?token=")[0]
