@@ -13,34 +13,63 @@
             padding: 0;
             color: #333;
         }
+        .wrapper {
+            width: 100%;
+            background-color: #f6f6f6;
+            padding: 20px 0;
+        }
+
+        /* --- Container --- */
         .container {
             max-width: 600px;
-            margin: 20px auto;
+            margin: 0 auto;
             background: #ffffff;
-            padding: 30px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* --- Header (dark gradient, logo bleeds to edges) --- */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            padding: 28px 30px;
+            text-align: center;
+        }
+        .header img {
+            max-width: 180px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* --- Body content --- */
+        .body-content {
+            padding: 30px;
             font-size: 16px;
         }
-        .logo {
-            display: block;
-            margin: 0 auto 20px;
-            max-width: 200px;
-            height: auto;
-        }
-        .highlight {
-            font-weight: bold;
-        }
-        .highlight_blue { color: #007bff; font-weight: bold; }
-        .highlight_purple { color: #b846ff; font-weight: bold; }
-        .highlight_pink { color: #ff00e4; font-weight: bold; }
-        .highlight_brown { color: #480032; font-weight: bold; }
+
+        /* --- Highlight classes (used in tier messages and body) --- */
+        .highlight { font-weight: bold; }
+        .highlight_blue       { color: #007bff; font-weight: bold; }
+        .highlight_purple     { color: #b846ff; font-weight: bold; }
+        .highlight_pink       { color: #ff00e4; font-weight: bold; }
+        .highlight_brown      { color: #480032; font-weight: bold; }
         .highlight_blue_light { color: #608fff; font-weight: bold; }
+
+        /* --- Sections --- */
+        .greeting    { margin-bottom: 10px; }
+        .intro-text  { margin-bottom: 20px; }
+        .outro-text  { margin-bottom: 20px; }
+        .signature   { margin-bottom: 20px; }
+
+        /* --- Items table --- */
+        .table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
         table {
             border-collapse: collapse;
             width: 100%;
-            border-radius: 6px;
-            overflow: hidden;
         }
         th, td {
             border: 1px solid #dddddd;
@@ -51,10 +80,10 @@
             background-color: #f2f2f2;
             font-weight: bold;
             color: #333;
+            border-bottom: 2px solid #cccccc;
         }
-        .table-wrapper {
-            overflow-x: auto;
-            margin-bottom: 20px;
+        tr:hover {
+            background-color: #e6f7ff;
         }
         .code {
             background-color: #f5f5f5;
@@ -62,18 +91,16 @@
             border-radius: 4px;
             font-family: monospace;
         }
-        .greeting {
-            margin-bottom: 10px;
-        }
-        .intro-text {
-            margin-bottom: 20px;
-        }
+
+        /* --- Order details --- */
         .order-details {
             margin-top: 20px;
         }
         .order-details p {
             margin: 5px 0;
         }
+
+        /* --- Tier section --- */
         .tier-section {
             background-color: #f0f8ff;
             border: 1px solid #e0e8f0;
@@ -82,12 +109,8 @@
             margin: 20px 0;
             text-align: justify;
         }
-        .outro-text {
-            margin-bottom: 20px;
-        }
-        .signature {
-            margin-bottom: 20px;
-        }
+
+        /* --- Footer --- */
         .footer {
             background-color: #f6f6f6;
             padding: 20px;
@@ -133,7 +156,7 @@
             margin: 0 0 12px 0;
         }
         .store-card {
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
         .store-card:last-child {
             margin-bottom: 0;
@@ -160,8 +183,10 @@
         .unsubscribe a {
             color: #999;
         }
+
+        /* --- Mobile --- */
         @media only screen and (max-width: 600px) {
-            .container {
+            .body-content {
                 padding: 20px;
                 font-size: 14px;
             }
@@ -173,60 +198,72 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/4a84ee60-425a-43fb-8c15-76117d25ba60/2000x2000.png" alt="Empório Zingaro Logo" class="logo">
+    <div class="wrapper">
+        <div class="container">
 
-        <div class="greeting">
-            <p>Olá <span class="highlight">{{cliente_nome}}</span>,</p>
-        </div>
+            <!-- Header with gradient and logo -->
+            <div class="header">
+                <img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/4a84ee60-425a-43fb-8c15-76117d25ba60/2000x2000.png" alt="Empório Zingaro Logo">
+            </div>
 
-        <div class="intro-text">
-            <p>Agradecemos por escolher o <strong>{{purchase_store_name}}</strong>! Sua compra rendeu <span class="highlight highlight_blue">{{pedido_pontos}}</span> pontos. Confira:</p>
-        </div>
+            <!-- Body content -->
+            <div class="body-content">
 
-        <div class="table-wrapper">
-            <table>
-                <tr>
-                    <th>Item</th>
-                    <th>Quantidade</th>
-                    <th>Multiplicador</th>
-                    <th>Pontos</th>
-                </tr>
-                {{#each items_data}}
-                <tr>
-                    <td>{{produto_descricao}}</td>
-                    <td>{{produto_quantidade}}</td>
-                    <td><span class="code">{{final_multiplier}}</span></td>
-                    <td><span class="highlight highlight_blue_light">{{produto_pontos_total}}</span></td>
-                </tr>
-                {{/each}}
-            </table>
-        </div>
+                <div class="greeting">
+                    <p>Olá <span class="highlight">{{cliente_nome}}</span>,</p>
+                </div>
 
-        <div class="order-details">
-            {{#if nota_fiscal_link}}
-            <p>Para acessar a nota fiscal da sua compra, <a href="{{nota_fiscal_link}}" class="highlight highlight_blue">clique aqui</a>.</p>
-            {{/if}}
-            <p><strong>Pedido ID:</strong> {{pedido_id}}</p>
-            <p><strong>Vendedor:</strong> {{vendedor_nome}}</p>
-        </div>
+                <div class="intro-text">
+                    <p>Agradecemos por escolher o <strong>{{purchase_store_name}}</strong>! Sua compra rendeu <span class="highlight highlight_blue">{{pedido_pontos}}</span> pontos. Confira:</p>
+                </div>
 
-        <div class="tier-section">
-            {{{tier_message}}}
-        </div>
+                <div class="table-wrapper">
+                    <table>
+                        <tr>
+                            <th>Item</th>
+                            <th>Quantidade</th>
+                            <th>Multiplicador</th>
+                            <th>Pontos</th>
+                        </tr>
+                        {{#each items_data}}
+                        <tr>
+                            <td>{{produto_descricao}}</td>
+                            <td>{{produto_quantidade}}</td>
+                            <td><span class="code">{{final_multiplier}}</span></td>
+                            <td><span class="highlight highlight_blue_light">{{produto_pontos_total}}</span></td>
+                        </tr>
+                        {{/each}}
+                    </table>
+                </div>
 
-        <div class="outro-text">
-            <p>Lembre-se: à medida que nossos clientes fazem mais compras, eles acumulam mais pontos, o que faz com que os pontos necessários para alcançar cada nível no nosso programa de fidelidade aumentem progressivamente.</p>
-            <p>Com o avanço da temporada, a tendência é que você precise de mais pontos para subir de nível. Para obter informações, <a href="https://emporiozingaro.github.io/z316-fidelidade/" class="highlight highlight_blue">clique aqui</a>.</p>
-            <p>Se tiver alguma dúvida, estamos à disposição por e-mail ou WhatsApp.</p>
-        </div>
+                <div class="order-details">
+                    {{#if nota_fiscal_link}}
+                    <p>Para acessar a nota fiscal da sua compra, <a href="{{nota_fiscal_link}}" class="highlight highlight_blue">clique aqui</a>.</p>
+                    {{/if}}
+                    <p><strong>Pedido ID:</strong> {{pedido_id}}</p>
+                    <p><strong>Vendedor:</strong> {{vendedor_nome}}</p>
+                </div>
 
-        <div class="signature">
-            <p>Obrigado pela preferência,<br>
-            Equipe Empório Zingaro.</p>
-        </div>
-    </div>
+                <div class="tier-section">
+                    {{{tier_message}}}
+                </div>
 
+                <div class="outro-text">
+                    <p>Lembre-se: à medida que nossos clientes fazem mais compras, eles acumulam mais pontos, o que faz com que os pontos necessários para alcançar cada nível no nosso programa de fidelidade aumentem progressivamente.</p>
+                    <p>Com o avanço da temporada, a tendência é que você precise de mais pontos para subir de nível. Para obter informações, <a href="https://emporiozingaro.github.io/z316-fidelidade/" class="highlight highlight_blue">clique aqui</a>.</p>
+                    <p>Se tiver alguma dúvida, estamos à disposição por e-mail ou WhatsApp.</p>
+                </div>
+
+                <div class="signature">
+                    <p>Obrigado pela preferência,<br>
+                    Equipe Empório Zingaro.</p>
+                </div>
+
+            </div><!-- end body-content -->
+        </div><!-- end container -->
+    </div><!-- end wrapper -->
+
+    <!-- Footer -->
     <div class="footer">
         <div class="social-media">
             <a href="https://www.instagram.com/emporiozingaro/" target="_blank"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/b802824e-cfd0-42e3-84bd-a75e7951a388/24x24.png" alt="Instagram" class="footer-icon"></a>
@@ -236,16 +273,24 @@
 
         <div class="footer-stores">
             <p class="stores-title">Nossas lojas</p>
-            {{#each stores}}
+
             <div class="store-card">
-                <p class="store-name">{{display_name}}</p>
-                <p class="store-detail"><a href="{{maps_link}}"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/0965c813-04ca-4fa3-a864-ded0d6a3f8cd/24x24.png" alt="Maps" class="footer-icon">{{address}}</a></p>
-                <p class="store-detail"><a href="tel:{{phone}}"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/2936527c-dcba-44df-9a0a-922ead9a47fc/24x24.png" alt="Phone" class="footer-icon">{{phone}}</a></p>
+                <p class="store-name">Empório Zingaro CLN 316</p>
+                <p class="store-detail"><a href="https://maps.app.goo.gl/irqng1cV7ZcCBmcRA" target="_blank"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/0965c813-04ca-4fa3-a864-ded0d6a3f8cd/24x24.png" alt="Maps" class="footer-icon">CLN 316, Bloco E, Loja 2 - Asa Norte - Brasília</a></p>
+                <p class="store-detail"><a href="tel:+5561996410175"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/2936527c-dcba-44df-9a0a-922ead9a47fc/24x24.png" alt="Phone" class="footer-icon">+55 (61) 99641-0175</a></p>
             </div>
-            {{/each}}
+
+            <!-- TODO: Update with second store details -->
+            <div class="store-card">
+                <p class="store-name">Empório Zingaro CLN 316</p>
+                <p class="store-detail"><a href="https://maps.app.goo.gl/irqng1cV7ZcCBmcRA" target="_blank"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/0965c813-04ca-4fa3-a864-ded0d6a3f8cd/24x24.png" alt="Maps" class="footer-icon">CLN 316, Bloco E, Loja 2 - Asa Norte - Brasília</a></p>
+                <p class="store-detail"><a href="tel:+5561996410175"><img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/2936527c-dcba-44df-9a0a-922ead9a47fc/24x24.png" alt="Phone" class="footer-icon">+55 (61) 99641-0175</a></p>
+            </div>
+
         </div>
 
         <p class="unsubscribe">Se deseja não receber mais mensagens como esta, <a href="<%asm_group_unsubscribe_raw_url%>" target="_blank">clique aqui</a>.</p>
     </div>
+
 </body>
 </html>
