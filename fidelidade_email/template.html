@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empório Zingaro - Clube de Fidelidade</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #2d2d2d;
+            line-height: 1.6;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        .wrapper {
+            width: 100%;
+            background-color: #f0f0f0;
+            padding: 24px 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 32px 30px;
+            text-align: center;
+        }
+        .header img {
+            max-width: 160px;
+            height: auto;
+        }
+
+        /* --- Points hero --- */
+        .points-hero {
+            background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
+            padding: 28px 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .points-hero .greeting {
+            font-size: 16px;
+            margin: 0 0 6px 0;
+            opacity: 0.9;
+        }
+        .points-hero .points-value {
+            font-size: 48px;
+            font-weight: 700;
+            margin: 8px 0;
+            letter-spacing: -1px;
+        }
+        .points-hero .points-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            margin: 0;
+        }
+        .points-hero .store-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 13px;
+            margin-top: 16px;
+            color: #ffffff;
+        }
+
+        /* --- Tier section --- */
+        .tier-section {
+            padding: 28px 30px;
+            font-size: 15px;
+        }
+        .tier-section p {
+            margin: 0 0 14px 0;
+            text-align: justify;
+        }
+        .tier-section p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* --- Highlight classes (used in tier messages) --- */
+        .highlight_blue { color: #2563eb; font-weight: 700; }
+        .highlight_purple { color: #7c3aed; font-weight: 700; }
+        .highlight_pink { color: #db2777; font-weight: 700; }
+        .highlight_brown { color: #6b21a8; font-weight: 700; }
+
+        /* --- Divider --- */
+        .divider {
+            border: none;
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 0 30px;
+        }
+
+        /* --- Purchase details --- */
+        .purchase-details {
+            padding: 24px 30px;
+        }
+        .purchase-details .section-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #6b7280;
+            margin: 0 0 16px 0;
+            font-weight: 600;
+        }
+        .detail-row {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .detail-label {
+            color: #6b7280;
+        }
+        .detail-value {
+            font-weight: 600;
+            color: #2d2d2d;
+        }
+
+        /* --- Items table --- */
+        .items-section {
+            padding: 0 30px 24px 30px;
+        }
+        .items-section .section-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #6b7280;
+            margin: 0 0 12px 0;
+            font-weight: 600;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #4b5563;
+        }
+        .multiplier-badge {
+            display: inline-block;
+            background-color: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .points-cell {
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        /* --- Programme note --- */
+        .programme-note {
+            padding: 20px 30px;
+            background-color: #faf5ff;
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        .programme-note p {
+            margin: 0 0 8px 0;
+        }
+        .programme-note p:last-child {
+            margin-bottom: 0;
+        }
+        .programme-note a {
+            color: #7c3aed;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* --- Footer --- */
+        .footer {
+            background-color: #1a1a2e;
+            color: #d1d5db;
+            padding: 28px 30px;
+            font-size: 13px;
+        }
+        .footer-social {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .footer-social a {
+            display: inline-block;
+            margin: 0 8px;
+        }
+        .footer-social img {
+            width: 28px;
+            height: 28px;
+        }
+        .footer-contact {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .footer-contact a {
+            color: #d1d5db;
+            text-decoration: none;
+        }
+        .footer-stores {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        .footer-stores .stores-title {
+            text-align: center;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #9ca3af;
+            margin: 0 0 16px 0;
+        }
+        .store-card {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .store-card:last-child {
+            margin-bottom: 0;
+        }
+        .store-card .store-name {
+            font-weight: 600;
+            color: #e5e7eb;
+            font-size: 14px;
+            margin: 0 0 4px 0;
+        }
+        .store-card a {
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        .store-card .store-address {
+            margin: 2px 0;
+        }
+        .store-card .store-phone {
+            margin: 2px 0;
+        }
+        .unsubscribe {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 11px;
+            color: #6b7280;
+        }
+        .unsubscribe a {
+            color: #6b7280;
+            text-decoration: underline;
+        }
+
+        /* --- Mobile --- */
+        @media only screen and (max-width: 620px) {
+            .container {
+                width: 100% !important;
+                border-radius: 0 !important;
+            }
+            .header, .points-hero, .tier-section,
+            .purchase-details, .items-section,
+            .programme-note, .footer {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+            .points-hero .points-value {
+                font-size: 40px !important;
+            }
+            .divider {
+                margin-left: 20px !important;
+                margin-right: 20px !important;
+            }
+            table {
+                font-size: 13px !important;
+            }
+            th, td {
+                padding: 8px 8px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+
+            <!-- Header -->
+            <div class="header">
+                <img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/4a84ee60-425a-43fb-8c15-76117d25ba60/2000x2000.png" alt="Empório Zingaro" />
+            </div>
+
+            <!-- Points Hero -->
+            <div class="points-hero">
+                <p class="greeting">Olá <strong>{{cliente_nome}}</strong>, sua compra rendeu</p>
+                <p class="points-value">{{pedido_pontos}}</p>
+                <p class="points-label">pontos</p>
+                <div class="store-badge">{{purchase_store_name}}</div>
+            </div>
+
+            <!-- Tier Message -->
+            <div class="tier-section">
+                {{{tier_message}}}
+            </div>
+
+            <hr class="divider" />
+
+            <!-- Purchase Details -->
+            <div class="purchase-details">
+                <p class="section-title">Detalhes da compra</p>
+                <span class="detail-row">
+                    <span class="detail-label">Pedido:</span>
+                    <span class="detail-value">{{pedido_id}}</span>
+                </span>
+                <span class="detail-row">
+                    <span class="detail-label">Vendedor:</span>
+                    <span class="detail-value">{{vendedor_nome}}</span>
+                </span>
+                {{#if nota_fiscal_link}}
+                <span class="detail-row">
+                    <a href="{{nota_fiscal_link}}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Ver nota fiscal</a>
+                </span>
+                {{/if}}
+            </div>
+
+            <!-- Items Table -->
+            <div class="items-section">
+                <p class="section-title">Itens</p>
+                <table>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qtd</th>
+                        <th>Mult.</th>
+                        <th>Pontos</th>
+                    </tr>
+                    {{#each items_data}}
+                    <tr>
+                        <td>{{produto_descricao}}</td>
+                        <td>{{produto_quantidade}}</td>
+                        <td><span class="multiplier-badge">{{final_multiplier}}</span></td>
+                        <td class="points-cell">{{produto_pontos_total}}</td>
+                    </tr>
+                    {{/each}}
+                </table>
+            </div>
+
+            <!-- Programme Note -->
+            <div class="programme-note">
+                <p>Os pontos necessários para cada nível aumentam conforme nossos clientes acumulam mais compras ao longo do trimestre.</p>
+                <p>Para mais informações sobre o Clube de Fidelidade, <a href="https://emporiozingaro.github.io/z316-fidelidade/">clique aqui</a>.</p>
+                <p>Dúvidas? Fale conosco por e-mail ou WhatsApp.</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <div class="footer-social">
+                    <a href="https://www.instagram.com/emporiozingaro/" target="_blank">
+                        <img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/b802824e-cfd0-42e3-84bd-a75e7951a388/24x24.png" alt="Instagram" />
+                    </a>
+                    <a href="https://github.com/EmporioZingaro" target="_blank">
+                        <img src="https://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/a3838552-780c-403a-b2af-b556c96be602/24x24.png" alt="GitHub" />
+                    </a>
+                </div>
+                <div class="footer-contact">
+                    <a href="mailto:sac@emporiozingaro.com">sac@emporiozingaro.com</a>
+                </div>
+
+                <div class="footer-stores">
+                    <p class="stores-title">Nossas lojas</p>
+                    {{#each stores}}
+                    <div class="store-card">
+                        <p class="store-name">{{display_name}}</p>
+                        <p class="store-address"><a href="{{maps_link}}">{{address}}</a></p>
+                        <p class="store-phone"><a href="tel:{{phone}}">{{phone}}</a></p>
+                    </div>
+                    {{/each}}
+                </div>
+
+                <div class="unsubscribe">
+                    <p>Se deseja não receber mais mensagens como esta, <a href="<%asm_group_unsubscribe_raw_url%>" target="_blank">clique aqui</a>.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
