@@ -48,6 +48,14 @@ ASM_GROUPS_TO_DISPLAY = [
     if g.strip()
 ]
 
+_REQUIRED_ENV_VARS = ["PROJECT_ID", "DATASET_ID", "FROM_EMAIL", "EMAIL_SENDER_NAME",
+                      "SENDGRID_TEMPLATE_ID", "SENDGRID_SECRET_PATH"]
+_missing = [v for v in _REQUIRED_ENV_VARS if not os.environ.get(v)]
+if _missing:
+    raise RuntimeError(
+        f"Missing required environment variables: {', '.join(_missing)}"
+    )
+
 STORE_DISPLAY_CONFIGS = {}
 _raw_store_configs = os.environ.get("STORE_DISPLAY_CONFIGS", "")
 if _raw_store_configs:
@@ -486,7 +494,7 @@ def prepare_email_data(pubsub_message):
         )
 
     purchase_points = sum(
-        item.get("produto_pontos_total", 0)
+        int(item.get("produto_pontos_total", 0))
         for item in items_data
         if isinstance(item, dict)
     )
@@ -589,6 +597,11 @@ def send_email(email_data, retry_count=0):
         if ASM_GROUP_ID and ASM_GROUPS_TO_DISPLAY:
             message.asm = Asm(
                 group_id=ASM_GROUP_ID, groups_to_display=ASM_GROUPS_TO_DISPLAY
+            )
+        else:
+            logger.warning(
+                "ASM not configured — email will be sent without unsubscribe group. "
+                "Set ASM_GROUP_ID and ASM_GROUPS_TO_DISPLAY to enable."
             )
 
         sendgrid_api_key = _get_sendgrid_api_key()
