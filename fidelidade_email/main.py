@@ -436,21 +436,6 @@ def _resolve_store_display(store_prefix):
     return store_config.get("display_name", store_prefix)
 
 
-def _build_stores_list():
-    stores = []
-    for prefix in sorted(STORE_DISPLAY_CONFIGS):
-        cfg = STORE_DISPLAY_CONFIGS[prefix]
-        stores.append(
-            {
-                "display_name": cfg.get("display_name", prefix),
-                "address": cfg.get("address", ""),
-                "phone": cfg.get("phone", ""),
-                "maps_link": cfg.get("maps_link", ""),
-            }
-        )
-    return stores
-
-
 def validate_data_structures(sales_data, items_data):
     if not isinstance(sales_data, dict):
         raise ValueError(
@@ -549,7 +534,6 @@ def prepare_email_data(pubsub_message):
         "pedido_pontos": purchase_points,
         "vendedor_nome": vendedor_nome,
         "purchase_store_name": _resolve_store_display(store_prefix),
-        "stores": _build_stores_list(),
         "items_data": [
             {
                 "produto_descricao": item.get("produto_descricao", ""),

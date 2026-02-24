@@ -6,8 +6,7 @@ the purchased items, points earned, and a personalised message about the custome
 current position in the Clube de Fidelidade loyalty programme.
 
 The loyalty programme is **unified across all stores** — customers from every store are
-ranked together in a single pool. The email shows which store the purchase was made at
-and lists all stores in the footer.
+ranked together in a single pool. The email shows which store the purchase was made at.
 
 ## Entry point
 
@@ -34,9 +33,6 @@ Messages published by `fidelidade_points_to_bq` must include:
 | `EMAIL_SENDER_NAME` | Display name for the sender (e.g. `Empório Zingaro`) |
 | `SENDGRID_TEMPLATE_ID` | SendGrid dynamic template ID |
 | `SENDGRID_SECRET_PATH` | Full Secret Manager path for the SendGrid API key (e.g. `projects/emporio-zingaro/secrets/sendgrid-api-key/versions/latest`) |
-| `STORE_DISPLAY_CONFIGS` | JSON mapping `store_prefix` to display metadata (see below) |
-| `ASM_GROUP_ID` | SendGrid ASM group ID for unsubscribe management |
-| `ASM_GROUPS_TO_DISPLAY` | Comma-separated list of ASM group IDs to show in the preference centre |
 
 ## Optional environment variables
 
@@ -45,31 +41,29 @@ Messages published by `fidelidade_points_to_bq` must include:
 | `TABLE_PEDIDOS` | `pedidos` | Table name for purchase history |
 | `TABLE_CURRENT` | `current` | Table name for the ephemeral current-trimester ranking |
 | `TABLE_CASHBACK` | `cashback` | Table name for previous-trimester tier history |
-| `TEST_MODE` | `True` | When `True`, redirects all emails to `TEST_EMAIL` |
+| `STORE_DISPLAY_CONFIGS` | `{}` | JSON mapping `store_prefix` to a display name (see below). If omitted, `purchase_store_name` falls back to the raw `store_prefix` value. |
+| `ASM_GROUP_ID` | `0` | SendGrid ASM group ID for unsubscribe management. If not set, emails are sent without an unsubscribe group (a warning is logged). |
+| `ASM_GROUPS_TO_DISPLAY` | _(none)_ | Comma-separated list of ASM group IDs to show in the preference centre. Required when `ASM_GROUP_ID` is set. |
+| `TEST_MODE` | `True` | When `True`, redirects all emails to `TEST_EMAIL` instead of the real recipient |
 | `TEST_EMAIL` | _(none)_ | Destination address when `TEST_MODE` is active |
 | `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
 ## STORE_DISPLAY_CONFIGS format
 
+Only the `display_name` field is consumed. It is used to resolve `purchase_store_name`
+(shown in the order details section of the email). The store footer is hardcoded in the
+template and does not depend on this variable.
+
 ```json
 {
   "z316": {
-    "display_name": "Empório Zingaro CLN 316",
-    "address": "CLN 316, Bloco E, Loja 2 - Asa Norte - Brasília",
-    "phone": "+55 (61) 99641-0175",
-    "maps_link": "https://maps.app.goo.gl/irqng1cV7ZcCBmcRA"
+    "display_name": "Empório Zingaro CLN 316"
   },
   "zscs": {
-    "display_name": "Empório Zingaro SCS",
-    "address": "SCS Qd. 7, Bloco A - Asa Sul - Brasília",
-    "phone": "+55 (61) 00000-0000",
-    "maps_link": "https://maps.app.goo.gl/placeholder"
+    "display_name": "Empório Zingaro SCS"
   }
 }
 ```
-
-The `purchase_store_name` template variable is resolved from the `store_prefix` in the
-Pub/Sub message. The full `stores` list is passed to the template for the footer.
 
 ## BigQuery dependencies
 
@@ -106,4 +100,3 @@ The SendGrid dynamic template (`template.html`) expects these variables:
 - `pedido_id`, `vendedor_nome`, `nota_fiscal_link` (optional)
 - `items_data` (array of objects with `produto_descricao`, `produto_quantidade`,
   `final_multiplier`, `produto_pontos_total`)
-- `stores` (array of objects with `display_name`, `address`, `phone`, `maps_link`)
