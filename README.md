@@ -83,6 +83,15 @@ Tiny ERP
   - `<TABLE_ID_SALES_ITEMS>`
 - Store separation is done at row level using `store_prefix` column.
 
+### Quarterly loyalty SQL orchestrator (cashback + commission)
+
+- Quarter-close orchestration is tracked in [`sql/fidelidade_quarter_orchestrator.sql`](sql/fidelidade_quarter_orchestrator.sql).
+- The script runs all three steps in order in a single execution: `cashback` → `comission_details` → `comission`.
+- It auto-targets the **most recently closed quarter** based on `CURRENT_DATE('America/Sao_Paulo')`, archives the pre-existing `cashback` table into `cashback_<quarter_id>`, and then rebuilds current `cashback`.
+- Cashback remains global for client ranking; commission outputs remain store-safe through `store_prefix`.
+- `comission_details` intentionally excludes `pedido_cashback`; it only keeps sale-level fields needed for commission payout.
+- For HR policy experiments, use [`sql/fidelidade_commission_v2_orchestrator.sql`](sql/fidelidade_commission_v2_orchestrator.sql) to build `comission_details_v2` and `comission_v2` with V2 rates (2% for Top/Platina/Ouro; 1% for remaining tiers).
+
 ## Backfill strategy
 
 Backfills should mimic the online contract so downstream functions remain unchanged.
