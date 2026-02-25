@@ -1,0 +1,33 @@
+{
+  "cliente_nome": "João Silva",
+  "cashback": "150,00",
+  "tier": "Platina",
+  "porcentagem_cashback": "5",
+  "points": "2000",
+  "pedidos": [
+    {
+      "pedido_dia": "2023-10-05",
+      "pedido_id": "12345",
+      "vendedor_nome": "Vendedor A",
+      "store_location": "z316",
+      "pedido_pontos": "300"
+    },
+    {
+      "pedido_dia": "2023-10-15",
+      "pedido_id": "12346",
+      "vendedor_nome": "Vendedor B",
+      "store_location": "aguas_claras",
+      "pedido_pontos": "200"
+    },
+    {
+      "pedido_dia": "2023-11-01",
+      "pedido_id": "12347",
+      "vendedor_nome": "Vendedor C",
+      "store_location": "z316",
+      "pedido_pontos": "150"
+    }
+  ],
+  "quarter_id": "25Q3",
+  "quarter_start": "2025-07-01",
+  "quarter_end": "2025-09-30"
+}
