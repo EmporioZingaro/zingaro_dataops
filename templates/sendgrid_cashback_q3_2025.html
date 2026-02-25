@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Empório Zingaro - Resultados do Programa de Fidelidade {{quarter_id}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
+
+  <style>
+    body {font-family: 'Open Sans', sans-serif;line-height: 1.8;background-color: #f6f6f6;margin: 0;padding: 0;color: #333;}
+    .container {max-width: 600px;margin: 20px auto;background: #fff;padding: 30px;border-radius: 8px;box-shadow: 0 2px 10px rgba(0,0,0,0.1);font-size: 16px;}
+    .logo {display: block;margin: 0 auto 20px;max-width: 200px;height: auto;}
+    .highlight {font-weight: bold;}
+    .highlight_blue {color: #007bff;}
+    .highlight_purple {color: #b846ff;}
+    .highlight_pink {color: #ff00e4;}
+    .highlight_brown {color: #480032;}
+    .highlight_blue_light {color: #608fff;}
+    .greeting {margin-bottom: 10px;}
+    .intro-text {margin-bottom: 20px;}
+    .cashback-section {background-color: #f0f8ff;border: 1px solid #e0e8f0;border-radius: 6px;padding: 20px;margin: 20px 0;}
+    .table-wrapper {overflow-x: auto;margin-bottom: 20px;}
+    table {border-collapse: collapse;width: 100%;border-radius: 6px;overflow: hidden;margin-top: 20px;}
+    th, td {border: 1px solid #dddddd;padding: 12px;text-align: left;}
+    th {background-color: #f2f2f2;font-weight: bold;color: #333;}
+    tr:hover {background-color: #e6f7ff;}
+    .outro-text {margin-bottom: 20px;}
+    .signature {margin-bottom: 20px;}
+    .footer {background-color: #f6f6f6;padding: 20px;text-align: center;font-size: 14px;border-top: 1px solid #ddd;}
+    .footer p {margin: 12px 0;}
+    .footer a {color: #333;text-decoration: none;}
+    .footer a:hover {text-decoration: underline;}
+    .social-media {text-align: center;margin-bottom: 18px;}
+    .social-media a {display: inline-block;margin: 0 10px;}
+    .footer-icon {vertical-align: middle;margin-right: 5px;width: 24px;height: 24px;}
+    .unsubscribe {font-size: 12px;color: #999;margin-top: 20px;}
+    .unsubscribe a {color: #999;}
+    .unsubscribe a:hover {color: #666;}
+    @media only screen and (max-width: 600px) {.container {padding: 20px;font-size: 14px;}th, td {padding: 10px;font-size: 14px;}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/4a84ee60-425a-43fb-8c15-76117d25ba60/2000x2000.png" alt="Logotipo do Empório Zingaro" class="logo">
+
+    <div class="greeting">
+      <p>Olá <span class="highlight">{{cliente_nome}}</span>,</p>
+    </div>
+
+    <div class="intro-text">
+      <p>Apresentamos os resultados do seu desempenho no Programa de Fidelidade do Empório Zingaro para o período <strong>{{quarter_start}} a {{quarter_end}}</strong> ({{quarter_id}}).</p>
+    </div>
+
+    <div class="cashback-section">
+      <p>Parabéns! Você acumulou <span class="highlight highlight_blue">R${{cashback}}</span> em cashback no período {{quarter_id}}.</p>
+      <p>Você alcançou a categoria <span class="highlight highlight_purple">{{tier}}</span>, o que significa que você recebeu <span class="highlight highlight_pink">{{porcentagem_cashback}}%</span> de cashback sobre suas compras.</p>
+    </div>
+
+    <div class="table-wrapper">
+      <h3><i class="fas fa-history highlight_blue_light"></i> Histórico de Pontuação {{quarter_id}}</h3>
+      <table>
+        <tr>
+          <th>Dia do Pedido</th>
+          <th>ID do Pedido</th>
+          <th>Vendedor</th>
+          <th>Loja</th>
+          <th>Pontos</th>
+        </tr>
+        {{#each pedidos}}
+        <tr>
+          <td>{{pedido_dia}}</td>
+          <td>{{pedido_id}}</td>
+          <td>{{vendedor_nome}}</td>
+          <td>{{store_location}}</td>
+          <td><span class="highlight highlight_blue_light">{{pedido_pontos}}</span></td>
+        </tr>
+        {{/each}}
+      </table>
+      <p><strong>Total de pontos: <span class="highlight highlight_brown">{{points}}</span></strong></p>
+    </div>
+
+    <div class="cashback-section">
+      <h3>Como Usar Seu Cashback</h3>
+      <ul>
+        <li>O cashback pode ser usado integral ou parcialmente em compras a partir de R$30</li>
+        <li>O cashback utilizado não pode exceder 30% do valor final da compra</li>
+        <li>Informe sua intenção de usar o cashback <strong>antes</strong> do pagamento</li>
+        <li><strong>O cashback expira no final de dezembro de 2025</strong></li>
+      </ul>
+    </div>
+
+    <div class="outro-text">
+      <p>Agradecemos sua participação contínua no nosso Programa de Fidelidade. Seu apoio é fundamental para o sucesso do Empório Zingaro.</p>
+      <p>
+        <a href="https://emporiozingaro.github.io/z316-fidelidade/" class="highlight highlight_blue">Clique aqui</a>
+        para entender melhor como funciona o programa e o sistema de pontuação. Estamos à disposição para esclarecer qualquer dúvida que você possa ter.
+      </p>
+    </div>
+
+    <div class="signature">
+      <p>Atenciosamente,<br>Equipe Empório Zingaro</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="social-media">
+      <a href="https://www.instagram.com/emporiozingaro/" target="_blank">
+        <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/b802824e-cfd0-42e3-84bd-a75e7951a388/24x24.png" alt="Instagram" class="footer-icon">
+      </a>
+      <a href="https://github.com/EmporioZingaro" target="_blank">
+        <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/a3838552-780c-403a-b2af-b556c96be602/24x24.png" alt="GitHub" class="footer-icon">
+      </a>
+    </div>
+    <p>
+      <a href="tel:+5561996410175">
+        <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/2936527c-dcba-44df-9a0a-922ead9a47fc/24x24.png" alt="Telefone" class="footer-icon">
+        +55 (61) 99641-0175
+      </a>
+    </p>
+    <p>
+      <a href="mailto:sac@emporiozingaro.com">
+        <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/559ef3d4-8b70-48d1-9cd2-a37632b97d93/24x24.png" alt="Email" class="footer-icon">
+        sac@emporiozingaro.com
+      </a>
+    </p>
+    <p>
+      <a href="https://maps.app.goo.gl/irqng1cV7ZcCBmcRA" target="_blank">
+        <img src="http://cdn.mcauto-images-production.sendgrid.net/cc7e8de96ecd4053/0965c813-04ca-4fa3-a864-ded0d6a3f8cd/24x24.png" alt="Localização" class="footer-icon">
+        CLN 316, Bloco E, Loja 2 - Asa Norte - Brasília
+      </a>
+    </p>
+    <p class="unsubscribe">
+      Se deseja não receber mais mensagens como esta,
+      <a href="<%asm_group_unsubscribe_raw_url%>" target="_blank">clique aqui</a>.
+    </p>
+  </div>
+</body>
+</html>
