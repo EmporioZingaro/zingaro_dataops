@@ -336,7 +336,29 @@ def _has_next_tier(points_data):
     return points_data["next_tier"] is not None
 
 
+def _tier_index_or_none(tier):
+    if tier is None:
+        return None
+    try:
+        return TIERS.index(tier)
+    except ValueError:
+        logger.warning("Unknown tier '%s' encountered while selecting message", tier)
+        return None
+
+
 def select_tier_message(current_tier, past_tier, points_data):
+    if current_tier is None:
+        return f"""
+        <p>Recebemos sua compra e registramos <span class=highlight_blue>{points_data['purchase_points']}</span> pontos nesta transação.</p>
+
+        <p>Nosso sistema de classificação é atualizado periodicamente. Em breve, vamos confirmar seu nível atual no programa de fidelidade.</p>
+
+        <p>Obrigado por comprar com a gente e continuar acumulando benefícios!</p>
+        """
+
+    current_index = _tier_index_or_none(current_tier)
+    past_index = _tier_index_or_none(past_tier)
+
     # --- New customer (no past tier) ---
     if past_tier is None:
         if current_tier == "Top1":
@@ -395,7 +417,7 @@ def select_tier_message(current_tier, past_tier, points_data):
         """
 
     # --- Dropped tier ---
-    if TIERS.index(current_tier) < TIERS.index(past_tier):
+    if current_index is not None and past_index is not None and current_index < past_index:
         return f"""
         <p>Nesta compra, você ganhou <span class=highlight_blue>{points_data['purchase_points']}</span> pontos, acumulando um total de <span class=highlight_blue>{points_data['current_points']}</span> pontos neste trimestre.</p>
 
@@ -405,7 +427,7 @@ def select_tier_message(current_tier, past_tier, points_data):
         """
 
     # --- Went up (non-Top1 destination, guaranteed to have next_tier) ---
-    tier_diff = TIERS.index(current_tier) - TIERS.index(past_tier)
+    tier_diff = current_index - past_index if current_index is not None and past_index is not None else 1
     if tier_diff == 1:
         return f"""
         <p>Parabéns! Você subiu de nível!</p>
@@ -524,6 +546,11 @@ def prepare_email_data(pubsub_message):
         "points_to_current_tier": points_to_current_tier,
     }
 
+    if current_tier is None:
+        logger.warning(
+            "No current tier found for cliente_cpf=%s; using fallback email messaging",
+            cliente_cpf,
+        )
     tier_message = select_tier_message(current_tier, past_tier, points_data)
     tier_message = " ".join(tier_message.split())
 
@@ -563,6 +590,12 @@ def send_email(email_data, retry_count=0):
 
     try:
         test_mode = os.environ.get("TEST_MODE", "True").lower() in ["true", "1", "t"]
+        if test_mode and not TEST_EMAIL:
+            raise ValueError(
+                "TEST_MODE is enabled but TEST_EMAIL is not configured. "
+                "Set TEST_EMAIL or disable TEST_MODE."
+            )
+
         recipient_email = TEST_EMAIL if test_mode else email_data["cliente_email"]
         logger.info(
             "Sending email | recipient=%s test_mode=%s attempt=%s",
@@ -620,12 +653,33 @@ def send_email(email_data, retry_count=0):
             raise
 
 
-def main(event, context):
-    if "data" not in event:
-        raise KeyError("Missing 'data' field in the received event.")
+def _extract_event_payload(event):
+    if isinstance(event, dict):
+        if "data" in event:
+            return event["data"]
+
+        message = event.get("message")
+        if isinstance(message, dict) and "data" in message:
+            return message["data"]
+
+    if hasattr(event, "get_json"):
+        request_json = event.get_json(silent=True) or {}
+        if isinstance(request_json, dict):
+            if "data" in request_json:
+                return request_json["data"]
+
+            message = request_json.get("message")
+            if isinstance(message, dict) and "data" in message:
+                return message["data"]
+
+    raise KeyError("Missing Pub/Sub 'data' field in the received event/request.")
+
+
+def main(event, context=None):
+    raw_data = _extract_event_payload(event)
 
     try:
-        message_str = base64.b64decode(event["data"]).decode("utf-8")
+        message_str = base64.b64decode(raw_data).decode("utf-8")
         pubsub_data = json.loads(message_str)
 
         if isinstance(pubsub_data, str):

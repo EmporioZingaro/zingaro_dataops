@@ -45,7 +45,7 @@ Messages published by `fidelidade_points_to_bq` must include:
 | `ASM_GROUP_ID` | `0` | SendGrid ASM group ID for unsubscribe management. If not set, emails are sent without an unsubscribe group (a warning is logged). |
 | `ASM_GROUPS_TO_DISPLAY` | _(none)_ | Comma-separated list of ASM group IDs to show in the preference centre. Required when `ASM_GROUP_ID` is set. |
 | `TEST_MODE` | `True` | When `True`, redirects all emails to `TEST_EMAIL` instead of the real recipient |
-| `TEST_EMAIL` | _(none)_ | Destination address when `TEST_MODE` is active |
+| `TEST_EMAIL` | _(none)_ | Destination address when `TEST_MODE` is active. **Required when `TEST_MODE=True`**. |
 | `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
 ## STORE_DISPLAY_CONFIGS format
