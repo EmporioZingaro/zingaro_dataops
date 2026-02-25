@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from google.cloud import bigquery
@@ -39,6 +40,8 @@ sg_client = SendGridAPIClient(sendgrid_secret)
 TEST_MODE = False
 TEST_EMAIL = "rodrigo@brunale.com"
 EMAIL_SEND_LIMIT = 3
+STRICT_PEDIDOS_MATCH = False
+ALLOW_EMPTY_PEDIDOS_SEND = False
 
 # Nominal percentages must stay aligned with sql/fidelidade_quarter_orchestrator.sql.
 TIER_PERCENTAGES = {
@@ -63,24 +66,52 @@ def get_porcentagem_cashback(tier: str, cashback_value: float, spend_value: floa
     return None
 
 
-def fetch_pedidos(client_email: str, quarter_start: Any, quarter_end: Any) -> List[Dict[str, Any]]:
+def normalize_cpf(cpf_value: Optional[str]) -> Optional[str]:
+    if not cpf_value:
+        return None
+    cpf_norm = re.sub(r"\D", "", cpf_value.strip())
+    return cpf_norm or None
+
+
+def to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def fetch_pedidos(cliente_cpf_norm: str, quarter_start: Any, quarter_end: Any) -> List[Dict[str, Any]]:
     pedidos_query = f"""
+    WITH RankedPurchases AS (
+      SELECT
+        pedido_dia,
+        pedido_id,
+        vendedor_nome,
+        pedido_pontos,
+        {PEDIDOS_STORE_COLUMN} AS store_location,
+        NULLIF(REGEXP_REPLACE(TRIM(cliente_cpf), r'\\D', ''), '') AS cliente_cpf_norm,
+        ROW_NUMBER() OVER (PARTITION BY uuid ORDER BY timestamp DESC) AS rn
+      FROM `{PEDIDOS_TABLE}`
+      WHERE pedido_dia >= @quarter_start
+        AND pedido_dia <= @quarter_end
+    )
     SELECT
       pedido_dia,
       pedido_id,
       vendedor_nome,
       pedido_pontos,
-      {PEDIDOS_STORE_COLUMN} AS store_location
-    FROM `{PEDIDOS_TABLE}`
-    WHERE cliente_email = @cliente_email
-      AND pedido_dia >= @quarter_start
-      AND pedido_dia <= @quarter_end
+      store_location
+    FROM RankedPurchases
+    WHERE rn = 1
+      AND cliente_cpf_norm = @cliente_cpf_norm
     ORDER BY pedido_dia DESC
     """
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("cliente_email", "STRING", client_email),
+            bigquery.ScalarQueryParameter("cliente_cpf_norm", "STRING", cliente_cpf_norm),
             bigquery.ScalarQueryParameter("quarter_start", "DATE", quarter_start),
             bigquery.ScalarQueryParameter("quarter_end", "DATE", quarter_end),
         ]
@@ -102,8 +133,8 @@ def fetch_pedidos(client_email: str, quarter_start: Any, quarter_end: Any) -> Li
         return pedidos
     except Exception as exc:
         logging.error(
-            "Error fetching pedidos data for email '%s': %s",
-            client_email,
+            "Error fetching pedidos data for CPF '%s': %s",
+            cliente_cpf_norm,
             exc,
         )
         return []
@@ -117,6 +148,7 @@ def fetch_cashback_data() -> List[Dict[str, Any]]:
       quarter_end,
       cliente_nome,
       cliente_cpf,
+      cliente_cpf_norm,
       cliente_email,
       points,
       spend,
@@ -151,8 +183,16 @@ def process_client_data(cashback_row: Dict[str, Any]) -> Optional[Dict[str, Any]
         )
         return None
 
-    spend_value = float(cashback_row.get('spend', 0) or 0)
-    cashback_value = float(cashback_row.get('cashback', 0) or 0)
+    cliente_cpf_norm = cashback_row.get('cliente_cpf_norm') or normalize_cpf(cashback_row.get('cliente_cpf'))
+    if not cliente_cpf_norm:
+        logging.warning(
+            "Skipping client %s due to missing CPF identity key.",
+            cashback_row.get('cliente_nome'),
+        )
+        return None
+
+    spend_value = to_float(cashback_row.get('spend', 0), default=0)
+    cashback_value = to_float(cashback_row.get('cashback', 0), default=0)
     porcentagem_cashback = get_porcentagem_cashback(
         cashback_row.get('tier'),
         cashback_value,
@@ -163,6 +203,7 @@ def process_client_data(cashback_row: Dict[str, Any]) -> Optional[Dict[str, Any]
         'quarter_id': quarter_id,
         'quarter_start': quarter_start.strftime('%Y-%m-%d'),
         'quarter_end': quarter_end.strftime('%Y-%m-%d'),
+        'cliente_cpf_norm': cliente_cpf_norm,
         'cliente_nome': cashback_row['cliente_nome'],
         'cliente_email': client_email,
         'cashback': "{:.2f}".format(cashback_value),
@@ -179,16 +220,40 @@ def process_client_data(cashback_row: Dict[str, Any]) -> Optional[Dict[str, Any]
         )
         return None
 
-    pedidos = fetch_pedidos(client_email, quarter_start, quarter_end)
-    if not pedidos:
+    pedidos = fetch_pedidos(cliente_cpf_norm, quarter_start, quarter_end)
+    if not pedidos and not ALLOW_EMPTY_PEDIDOS_SEND:
         logging.warning(
-            "No pedidos found for client %s in quarter %s.",
+            "No pedidos found for client %s in quarter %s for CPF %s.",
             client_data['cliente_nome'],
             quarter_id,
+            cliente_cpf_norm,
         )
         return None
 
+    pedidos_total_points = sum(to_float(pedido.get('pedido_pontos', 0), default=0) for pedido in pedidos)
+    cashback_points = to_float(client_data.get('points', 0), default=0)
+    points_match = abs(pedidos_total_points - cashback_points) < 0.001
+    if not points_match:
+        logging.warning(
+            (
+                "Points mismatch for client %s (%s, %s): cashback points=%s, "
+                "pedidos points=%s"
+            ),
+            client_data['cliente_nome'],
+            quarter_id,
+            cliente_cpf_norm,
+            cashback_points,
+            pedidos_total_points,
+        )
+        if STRICT_PEDIDOS_MATCH:
+            logging.warning(
+                "Skipping email for client %s due to STRICT_PEDIDOS_MATCH enabled.",
+                client_data['cliente_nome'],
+            )
+            return None
+
     client_data['pedidos'] = pedidos
+    client_data.pop('cliente_cpf_norm', None)
     return client_data
 
 
