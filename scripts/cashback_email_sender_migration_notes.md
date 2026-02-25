@@ -49,3 +49,21 @@ Use this checklist before promoting the cashback sender to production.
 - Existing variables: `cliente_nome`, `cashback`, `tier`, `porcentagem_cashback`, `points`, `pedidos`
 - Pedidos-level store variable: `store_location` (sent as raw `store_prefix` value from data)
 - Quarter context variables available to template logic: `quarter_id`, `quarter_start`, `quarter_end`
+
+
+## Pedidos alignment mode (production behavior)
+
+- Pedidos are fetched using the same identity strategy as cashback generation:
+  - CPF normalization (`cliente_cpf_norm`)
+  - quarter-bound date filter (`quarter_start`..`quarter_end`)
+  - latest row by `uuid` (`ROW_NUMBER() ... rn = 1`)
+- This prevents divergence between cashback summary values and order-history evidence shown in email.
+
+## Sender guardrails
+
+- `STRICT_PEDIDOS_MATCH`
+  - `False` (default): send email and log warning when points mismatch is detected.
+  - `True`: skip sending when points mismatch is detected.
+- `ALLOW_EMPTY_PEDIDOS_SEND`
+  - `False` (default): skip sending when no pedido rows are found for client quarter identity.
+  - `True`: allow send with empty pedidos list.
