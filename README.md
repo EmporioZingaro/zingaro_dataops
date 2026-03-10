@@ -3,7 +3,7 @@
 This repository hosts a multi-store ingestion and transformation pipeline for Tiny ERP sales events.
 The canonical flow is:
 
-`webhook -> GCS webhook bucket -> tiny_pipeline -> Pub/Sub -> (gcs_to_bq | tiny-transformation-sales-to-bq | fidelidade_points_to_bq)`
+`webhook -> GCS webhook bucket -> tiny_pipeline -> Pub/Sub -> (gcs_to_bq | tiny-transformation-sales-to-bq | fidelidade_points_to_bq -> fidelidade_email)`
 
 Use this README as the entrypoint; then open each function README for implementation-level details.
 
@@ -22,6 +22,7 @@ Tiny ERP
                     ├─ gcs_to_bq (raw payload landing in per-store datasets/tables)
                     ├─ tiny-transformation-sales-to-bq (sales reporting tables)
                     └─ fidelidade_points_to_bq (loyalty points tables)
+                        └─ fidelidade_email (transactional loyalty email via SendGrid)
 ```
 
 ## Cloud Functions inventory
@@ -33,6 +34,7 @@ Tiny ERP
 | `gcs_to_bq/` | `cloud_function_entry_point` | Pub/Sub | `DATASET_ID`, `PROJECT_ID`, `SOURCE`, `VERSION`. Optional notification vars: `TOPIC_ID`, `NOTIFY`. |
 | `tiny-transformation-sales-to-bq/` | `process_pubsub_message` | Pub/Sub | Preferred multi-store mode: `PROJECT_ID`, `DATASET_BASE_ID`, `SOURCE_ID`. Optional: `PEDIDOS_TABLE_NAME`, `ITENS_PEDIDO_TABLE_NAME`, `LOG_LEVEL`. Legacy fallback: `PEDIDOS_TABLE_ID`, `ITENS_PEDIDO_TABLE_ID` (only when `DATASET_BASE_ID` is absent). |
 | `fidelidade_points_to_bq/` | `pubsub_callback` | Pub/Sub | `PROJECT_ID`, `DATASET_ID`, `TABLE_ID_SALES`, `TABLE_ID_SALES_ITEMS`, `PUBSUB_TOPIC`, `SOURCE_IDENTIFIER`, `VERSION_CONTROL`, `FIDELIDADE_MULTIPLIER`. Optional: `DEBUG_MODE`, `LOG_LEVEL`. |
+| `fidelidade_email/` | `main` | Pub/Sub | `PROJECT_ID`, `DATASET_ID`, `FROM_EMAIL`, `EMAIL_SENDER_NAME`, `SENDGRID_TEMPLATE_ID`, `SENDGRID_SECRET_PATH`. Optional: `TABLE_PEDIDOS`, `TABLE_CURRENT`, `TABLE_CASHBACK`, `STORE_DISPLAY_CONFIGS`, `ASM_GROUP_ID`, `ASM_GROUPS_TO_DISPLAY`, `TEST_MODE`, `TEST_EMAIL`, `LOG_LEVEL`. |
 
 ## Multi-store conventions
 
@@ -211,6 +213,7 @@ This workflow is review-first and keeps replay bounded to affected dates only.
 - [`gcs_to_bq/README.md`](gcs_to_bq/README.md)
 - [`tiny-transformation-sales-to-bq/README.md`](tiny-transformation-sales-to-bq/README.md)
 - [`fidelidade_points_to_bq/README.md`](fidelidade_points_to_bq/README.md)
+- [`fidelidade_email/README.md`](fidelidade_email/README.md)
 
 
 ## Validation workflow CLI (Chunk 7)
